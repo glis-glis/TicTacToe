@@ -1,0 +1,25 @@
+* TicTacToe
+This is a Python implementation if TicTacToe, using Bitboards.
+
+* Usage
+** Clone a Copy and run the test
+~git clone https://github.com/afue/TicTacToe.git~
+~cd TicTacToe~
+~chmod +x bin/run~
+~bin/run --test~
+
+** Play a game
+~bin/run~
+
+* Design Choices
+** Bitboards
+- Three 9-bit bitboards are used: First player, second player and occupied cells
+- One 32bit (or more) integer is enough to save all these
+- No boundary nor type check done on bitboard functions, only on the string interface
+
+** Engine Interface
+- Use strings to interact between user and Engine
+- No use of exceptions, use Boolean when function call can fail
+
+** Test Cases
+- Use assert statements for test cases
