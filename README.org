@@ -3,10 +3,12 @@ This is a Python implementation if TicTacToe, using Bitboards.
 
 * Usage
 ** Clone a Copy and run the test
-~git clone https://github.com/afue/TicTacToe.git~
-~cd TicTacToe~
-~chmod +x bin/run~
-~bin/run --test~
+#+BEGIN_SRC
+$ git clone https://github.com/afue/TicTacToe.git
+$ cd TicTacToe
+$ chmod +x bin/run
+$ bin/run --test
+#+END_SRC
 
 ** Play a game
 ~bin/run~
