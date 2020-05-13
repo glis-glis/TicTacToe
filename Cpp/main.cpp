@@ -3,24 +3,49 @@
 #include <cstdint>
 #include <cassert>
 
+#define ASSERT(e)                                                              \
+	{                                                                          \
+		if (!(e)) { throw "ASSERT: " __FILE__ " " #e; }                        \
+	}
+
 namespace bitboard
 {
-using bboard = uint_fast32_t;
-enum Index {player1 = 0, player2 = 9, total = 18 };
-enum BBoard { empty = 0, full = 0b111111111, length = 9 };
-enum Eval { draw = 0, won = 1 };
+/// All information of the board, i.e. all three bitboard (1e player, 2e player,
+/// both blayers)
+using Board  = uint_fast32_t;
+/// One bitboard
+using BBoard = uint_fast32_t;
+using Player = uint_fast32_t;
+using Move   = uint_fast32_t;
 
-bboard other(const bboard player) { return player^Index::player2; }
+enum Players {PLAYER1 = 0, PLAYER2 = 9, BOTH = 18 };
+enum BBoards { EMPTY = 0, FULL = 0b111111111, LENGTH = 9 };
+enum Evals { DRAW = 0, WON = 1 };
+
+BBoard other(const Player p) { return p^Players::PLAYER2; }
+BBoard get_bboard(const Board b, const Player p) {
+	return (b >> p) & BBoards::FULL;
+}
+Board play(const Board b, const Player p, const Move m) {
+	return b | (1 << (m + p)) | (1 << (m + Players::BOTH));
+}
 
 void test() {
-	assert(other(Index::player1) != Index::player2);
-		
+	// other
+	assert(other(Players::PLAYER1) == Players::PLAYER2);
+	assert(other(Players::PLAYER2) == Players::PLAYER1);
+	assert(other(other(Players::PLAYER1)) == Players::PLAYER1);
+	assert(other(other(Players::PLAYER2)) == Players::PLAYER2);
+
+	// get_board
+	assert(get_bboard(BBoards::EMPTY, Players::PLAYER1) == BBoards::EMPTY);
+	assert(get_bboard(BBoards::EMPTY, Players::PLAYER2) == BBoards::EMPTY);
+	assert(get_bboard(BBoards::EMPTY, Players::BOTH)   == BBoards::EMPTY);
 }
 } // namespace bitboard
 
 int main()
 {
-	std::cout << "TicTacToe\n";
 	bitboard::test();
 	return 0;
 }
