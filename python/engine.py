@@ -64,8 +64,8 @@ class Engine:
 	def is_finished(self):
 		"""Is game over?"""
 		return (bb.is_full(self._board)
-				or bb.is_won(self._board, bb.Index.PLAYER1)
-				or bb.is_won(self._board, bb.Index.PLAYER2))
+				or bb.is_won(self._board, bb.Players.ONE)
+				or bb.is_won(self._board, bb.Players.TWO))
 
 	def play(self, player, move):
 		"""

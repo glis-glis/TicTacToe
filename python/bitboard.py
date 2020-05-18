@@ -12,11 +12,11 @@ performed for performance reasons.
 from random import randint, getrandbits
 from enum import IntEnum
 
-class Index(IntEnum):
+class Players(IntEnum):
 	"""Index of start of bitboards"""
-	PLAYER1 = 0
-	PLAYER2 = 9
-	TOTAL   = 18
+	ONE  = 0
+	TWO  = 9
+	BOTH = 18
 
 class BBoard(IntEnum):
 	"""Bitboard constants"""
@@ -35,7 +35,7 @@ def other(player):
 	0 ^ 9 -> 9
 	9 ^ 9 -> 0
 	"""
-	return player ^ Index.PLAYER2
+	return player ^ Players.TWO
 
 def bboard(board, index):
 	"""
@@ -52,18 +52,18 @@ def play(board, player, move):
 	play move for player and return new board
 	No boundary nor type check for performance reason!
 	"""
-	return board | (1 << (move + player)) | (1 << (move + Index.TOTAL))
+	return board | (1 << (move + player)) | (1 << (move + Players.BOTH))
 
 def is_legal(board):
 	"""Is board legal?"""
-	bb0 = bboard(board, Index.PLAYER1)
-	bb1 = bboard(board, Index.PLAYER2)
-	bb2 = bboard(board, Index.TOTAL)
+	bb0 = bboard(board, Players.ONE)
+	bb1 = bboard(board, Players.TWO)
+	bb2 = bboard(board, Players.BOTH)
 	return (not bb0 & bb1) and ((bb0 | bb1) == bb2)
 
 def is_full(board):
 	"""Is board full?"""
-	return (bboard(board, Index.TOTAL)) == BBoard.FULL
+	return (bboard(board, Players.BOTH)) == BBoard.FULL
 
 def is_won(board, player):
 	"""Is position won?"""
@@ -74,12 +74,12 @@ def is_won(board, player):
 
 def moves(board):
 	"""Return all possible moves"""
-	bb = bboard(board, Index.TOTAL)
+	bb = bboard(board, Players.BOTH)
 	for i in range(BBoard.LENGTH):
 		if not (bb >> i) & 1:
 			yield i
 
-def score(board, player):
+def minimax(board, player):
 	"""Return score of move."""
 	if is_won(board, player):
 		return Eval.WON
@@ -89,10 +89,28 @@ def score(board, player):
 	sc = Eval.WON
 	o  = other(player)
 	for m in moves(board):
-		sc = min(sc, -score(play(board, o, m), o))
+		sc = min(sc, -minimax(play(board, o, m), o))
 		if sc == -Eval.WON:
 			break
 	return sc
+
+def alphabeta(board, player, alpha = -Eval.WON):
+	"""Return score of move."""
+	if is_won(board, player):
+		return Eval.WON
+	if is_full(board):
+		return Eval.DRAW
+
+	beta = Eval.WON
+	o  = other(player)
+	for m in moves(board):
+		beta = min(beta, -alphabeta(play(board, o, m), o, -beta))
+		if beta <= alpha:
+			break
+	return beta
+
+score = minimax
+score = alphabeta
 
 def best_move(board, player, randomize=True):
 	"""
@@ -138,7 +156,7 @@ def move2str(move):
 
 	i = move%3
 	j = move//3
-	return "abc"[i] + "123"[j]
+	return "".join(["abc"[i], "123"[j]])
 
 def str2board(sboard):
 	"""
@@ -157,9 +175,9 @@ def str2board(sboard):
 	board = 0
 	for i, s in enumerate(sboard):
 		if s == "x":
-			board = play(board, Index.PLAYER1, i)
+			board = play(board, Players.ONE, i)
 		elif s == "o":
-			board = play(board, Index.PLAYER2, i)
+			board = play(board, Players.TWO, i)
 
 	return board
 
@@ -174,8 +192,8 @@ def board2str(board):
 		return ""
 
 	s = ["."]*9
-	white = bboard(board, Index.PLAYER1)
-	black = bboard(board, Index.PLAYER2)
+	white = bboard(board, Players.ONE)
+	black = bboard(board, Players.TWO)
 
 	for i in range(BBoard.LENGTH):
 		bi = 1 << i
@@ -193,9 +211,9 @@ def str2player(splayer):
 
 	splayer = splayer.lower()
 	if splayer in ["1", "x"]:
-		return Index.PLAYER1
+		return Players.ONE
 	if splayer in ["2", "o"]:
-		return Index.PLAYER2
+		return Players.TWO
 
 	return -1
 
@@ -203,26 +221,26 @@ def test():
 	"""Test cases"""
 
 	# other
-	assert other(Index.PLAYER1) == Index.PLAYER2
-	assert other(Index.PLAYER2) == Index.PLAYER1
+	assert other(Players.ONE) == Players.TWO
+	assert other(Players.TWO) == Players.ONE
 
-	assert other(other(Index.PLAYER1)) == Index.PLAYER1
-	assert other(other(Index.PLAYER2)) == Index.PLAYER2
+	assert other(other(Players.ONE)) == Players.ONE
+	assert other(other(Players.TWO)) == Players.TWO
 
 	# white
 	for i in range(0b111111111+1):
 		noise = randint(0, 1 << 12) << BBoard.LENGTH
-		assert bboard(i | noise, Index.PLAYER1) == i
+		assert bboard(i | noise, Players.ONE) == i
 
-	assert bboard(0b111111111+1, Index.PLAYER1) != 0b111111111+1
+	assert bboard(0b111111111+1, Players.ONE) != 0b111111111+1
 
 	# black
 	for i in range(0b111111111+1):
 		noise1 = randint(0, (1 << 9) - 1)
 		noise2 = randint(0, 1 << 13) << 18
-		assert bboard((i << 9) | noise1 | noise2, Index.PLAYER2) == i
+		assert bboard((i << 9) | noise1 | noise2, Players.TWO) == i
 
-	assert bboard(1, Index.PLAYER2) != 1
+	assert bboard(1, Players.TWO) != 1
 
 	# white + black
 	for w in range(0b111111111+1):
@@ -230,8 +248,8 @@ def test():
 			noise = randint(0, 1 << 13) << 18
 			board = w | (b << 9) | (noise << 18)
 
-			assert bboard(board, Index.PLAYER1) == w
-			assert bboard(board, Index.PLAYER2) == b
+			assert bboard(board, Players.ONE) == w
+			assert bboard(board, Players.TWO) == b
 
 	# is_legal
 	assert is_legal(BBoard.EMPTY)
@@ -239,16 +257,16 @@ def test():
 
 	# play, is_legal
 	for m in range(9):
-		assert (bboard(play(BBoard.EMPTY, Index.PLAYER1, m), Index.PLAYER1)
-				== bboard(play(0, Index.PLAYER2, m), Index.PLAYER2))
+		assert (bboard(play(BBoard.EMPTY, Players.ONE, m), Players.ONE)
+				== bboard(play(0, Players.TWO, m), Players.TWO))
 	for w in range(9):
 		bs = list(range(9))
 		bs.remove(w)
 		for b in bs:
-			bi = play(play(0, Index.PLAYER1, w), Index.PLAYER2, b)
+			bi = play(play(0, Players.ONE, w), Players.TWO, b)
 			assert is_legal(bi)
-			assert bboard(bi, Index.PLAYER1) == 1 << w
-			assert bboard(bi, Index.PLAYER2) == 1 << b
+			assert bboard(bi, Players.ONE) == 1 << w
+			assert bboard(bi, Players.TWO) == 1 << b
 
 	# is_full
 	assert is_full(0b111111111111111111000000000)
@@ -256,10 +274,10 @@ def test():
 	assert not is_full(BBoard.EMPTY)
 
 	# is_won
-	assert not is_won(BBoard.EMPTY, Index.PLAYER1)
-	assert is_won(0b111000000, Index.PLAYER1)
-	assert not is_won(0b111000000, Index.PLAYER2)
-	assert is_won(0b111000000 << 9, Index.PLAYER2)
+	assert not is_won(BBoard.EMPTY, Players.ONE)
+	assert is_won(0b111000000, Players.ONE)
+	assert not is_won(0b111000000, Players.TWO)
+	assert is_won(0b111000000 << 9, Players.TWO)
 
 	# moves
 	assert list(moves(0)) == list(range(9))
@@ -267,18 +285,18 @@ def test():
 	assert not list(moves(0b111111111111111111000000000))
 
 	# score
-	b = play(BBoard.EMPTY, Index.PLAYER1, 0)
-	assert score(b, Index.PLAYER1)     == 0
-	b = play(b, Index.PLAYER1, 1)
-	assert score(b, Index.PLAYER1)  == 1
-	assert score(b, Index.PLAYER2)  == -1
+	b = play(BBoard.EMPTY, Players.ONE, 0)
+	assert score(b, Players.ONE)     == 0
+	b = play(b, Players.ONE, 1)
+	assert score(b, Players.ONE)  == 1
+	assert score(b, Players.TWO)  == -1
 
 	# best_move
-	assert best_move(BBoard.EMPTY, Index.PLAYER1, False) == (0, 0)
-	assert best_move(BBoard.EMPTY, Index.PLAYER1)[1]     == 0
+	assert best_move(BBoard.EMPTY, Players.ONE, False) == (0, 0)
+	assert best_move(BBoard.EMPTY, Players.ONE)[1]     == 0
 
-	assert best_move(0b11, Index.PLAYER1)[1] == 1
-	assert best_move(0b11, Index.PLAYER2)[1] == -1
+	assert best_move(0b11, Players.ONE)[1] == 1
+	assert best_move(0b11, Players.TWO)[1] == -1
 
 	# Str2move
 	assert str2move("")    == -1
@@ -320,7 +338,7 @@ def test():
 	assert board2str(BBoard.EMPTY) == 9*"."
 	assert board2str(1)            == ""
 
-	p = Index.PLAYER1
+	p = Players.ONE
 	b = BBoard.EMPTY
 	for i in range(9):
 		b = play(b, p, i)
@@ -333,6 +351,12 @@ def test():
 	assert str2player(" ")  == -1
 	assert str2player("xx") == -1
 	for p1 in ["1", "x", "X"]:
-		assert str2player(p1) == Index.PLAYER1
+		assert str2player(p1) == Players.ONE
 	for p2 in ["2", "o", "O"]:
-		assert str2player(p2) == Index.PLAYER2
+		assert str2player(p2) == Players.TWO
+
+def test_minimax_perf():
+	minimax(BBoard.EMPTY, Players.ONE)
+
+def test_alphabeta_perf():
+	alphabeta(BBoard.EMPTY, Players.ONE)

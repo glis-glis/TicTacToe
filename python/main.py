@@ -46,19 +46,9 @@ def repl():
 	else:
 		print("Game draw!")
 
-def test():
-	import bitboard
-	engine.test()
-	bitboard.test()
 
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Python TicTacToe implementation')
-	parser.add_argument("--test", "-t", action='store_true', default=False,
-						help="Run testcases")
 
-	args = parser.parse_args()
-	if args.test:
-		test()
-	else:
-		repl()
+	repl()
