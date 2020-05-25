@@ -14,41 +14,41 @@ import argparse
 import engine
 
 def repl():
-	e = engine.Engine()
-	print(e.pretty())
+    e = engine.Engine()
+    print(e.pretty())
 
-	ans = " "
-	while ans not in ["", "y", "n"]:
-		ans = input("Do you want to start? [Y/n] ").lower()
-	if ans == "n":
-		user = "o"
-		me   = "x"
-		print("You play o")
-		e.play_best(me)
-		print(e.pretty())
-	else:
-		user = "x"
-		me   = "o"
-		print("You play x")
+    ans = " "
+    while ans not in ["", "y", "n"]:
+        ans = input("Do you want to start? [Y/n] ").lower()
+    if ans == "n":
+        user = "o"
+        me   = "x"
+        print("You play o")
+        e.play_best(me)
+        print(e.pretty())
+    else:
+        user = "x"
+        me   = "o"
+        print("You play x")
 
-	while not e.is_finished():
-		m = input("Your move? [a1-c3] ")
-		if not e.play(user, m):
-			print("Illegal move")
-			continue
-		e.play_best(me)
-		print(e.pretty())
+    while not e.is_finished():
+        m = input("Your move? [a1-c3] ")
+        if not e.play(user, m):
+            print("Illegal move")
+            continue
+        e.play_best(me)
+        print(e.pretty())
 
-	if e.is_won(user):    #That shoud not be possible
-		print("You win!")
-	elif e.is_won(me):
-		print("I win!")
-	else:
-		print("Game draw!")
+    if e.is_won(user):    #That shoud not be possible
+        print("You win!")
+    elif e.is_won(me):
+        print("I win!")
+    else:
+        print("Game draw!")
 
 
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description='Python TicTacToe implementation')
+    parser = argparse.ArgumentParser(description='Python TicTacToe implementation')
 
-	repl()
+    repl()
