@@ -33,6 +33,15 @@ BBoard other(const Player p)
 }
 
 /**
+Return board of bitboards b1 and b2. No boundary nor type check for
+performance reason!
+ **/
+Board board(const BBoard b1, const BBoard b2)
+{
+	return b1 | (b2 << Players::TWO) | ((b1 | b2) << Players::BOTH);
+}
+
+/**
 Return bitboard of board b for player p. No boundary nor type check for
 performance reason!
  **/
@@ -40,6 +49,7 @@ BBoard bboard(const Board b, const Player p)
 {
 	return (b >> p) & BBoards::FULL;
 }
+
 /**
 Play move for player and return new board
 No boundary nor type check for performance reason!
@@ -55,7 +65,7 @@ bool is_legal(const Board b)
 	const BBoard bb1     = bboard(b, Players::ONE);
 	const BBoard bb2     = bboard(b, Players::TWO);
 	const BBoard bb_both = bboard(b, Players::BOTH);
-	return !(bb1 & bb2) && ((bb1 | bb2) == bb2);
+	return !(bb1 & bb2) && ((bb1 | bb2) == bb_both);
 }
 
 /// Is board b full?
@@ -65,7 +75,7 @@ bool is_full(const Board b)
 }
 
 /// Is board b won?
-bool is_won(const Board b) { return false; }
+bool is_won(const Board b, const Player p) { return true; }
 
 /**    
 Return score of move (already played in order not to put it onto the stack).
@@ -97,39 +107,53 @@ void test()
 	std::random_device                    r;
 	std::default_random_engine            rand_engine(r());
 	std::uniform_int_distribution<BBoard> rand_bboard(0, BBoards::FULL);
+
 	// other
 	assert(other(Players::ONE) == Players::TWO);
 	assert(other(Players::TWO) == Players::ONE);
 	assert(other(other(Players::ONE)) == Players::ONE);
 	assert(other(other(Players::TWO)) == Players::TWO);
 
-	// get_board
+	// board
+	assert(board(BBoards::EMPTY, BBoards::EMPTY) == BBoards::EMPTY);
+
+	// bboard 
 	assert(bboard(BBoards::EMPTY, Players::ONE) == BBoards::EMPTY);
 	assert(bboard(BBoards::EMPTY, Players::TWO) == BBoards::EMPTY);
 	assert(bboard(BBoards::EMPTY, Players::BOTH) == BBoards::EMPTY);
-	for (int b = 0; b < BBoards::FULL + 1; ++b) {
-		const BBoard noise1   = rand_bboard(rand_engine);
-		const BBoard noise2   = rand_bboard(rand_engine) << 9;
-		const BBoard noise_bo = rand_bboard(rand_engine) << 18;
-		assert(bboard(b | noise2 | noise_bo, Players::ONE) == b);
-		assert(bboard(noise1 | (b << 9) | noise_bo, Players::TWO) == b);
-		assert(bboard(noise1 | noise2 | b << 18, Players::BOTH) == b);
+	for (int b = BBoards::EMPTY; b < BBoards::FULL + 1; ++b) {
+		const BBoard noise1 = rand_bboard(rand_engine);
+		const BBoard noise2 = rand_bboard(rand_engine);
+		const Board b1 = board(b, noise2);
+		const Board b2 = board(noise1, b);
+		assert(bboard(b1, Players::ONE) == b);
+		assert(bboard(b2, Players::TWO) == b);
 	}
 
 	// is_legal
-	assert(is_legal(BBoards::EMPTY));
+	assert(is_legal(board(BBoards::EMPTY, BBoards::EMPTY)));
+	assert(is_legal(board(1, BBoards::EMPTY)));
 	assert(!is_legal(1));
 
-	for (Move m = 0; m <= 9; ++m) {
+	Board  b = BBoards::EMPTY;
+	Player p = Players::ONE;
+	for (Move m = 0; m < 9; ++m) {
 		assert(bboard(play(BBoards::EMPTY, Players::ONE, m),
 		              Players::ONE) ==
 		       bboard(play(BBoards::EMPTY, Players::TWO, m),
 		              Players::TWO));
+		b = play(b, p, m);
+		p = other(p);
+		assert(is_legal(b));
 	}
 
+	// is_full
 	assert(is_full(BBoards::FULL | (BBoards::FULL << Players::BOTH)));
 	assert(is_full((BBoards::FULL << Players::TWO) |
 	               (BBoards::FULL << Players::BOTH)));
 	assert(!is_full(BBoards::EMPTY));
+
+	// is_won
+	assert(!is_won(BBoards::EMPTY, Players::ONE));
 }
 } // namespace bitboard
