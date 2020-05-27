@@ -30,12 +30,10 @@ class Eval(IntEnum):
     DRAW = 0
 
 def other(player):
-    """
-    Return other player.
-    0 ^ 9 -> 9
-    9 ^ 9 -> 0
-    """
-    return player ^ Players.TWO
+    """Return other player"""
+#0^9 -> 9
+    #9^9 -> 0
+    return player^Players.TWO
 
 def bboard(board, index):
     """
@@ -80,7 +78,10 @@ def moves(board):
             yield i
 
 def minimax(board, player):
-    """Return score of move."""
+    """
+    Return score of move.
+    Uses minimax (negamax) algorithm.
+    """
     if is_won(board, player):
         return Eval.WON
     if is_full(board):
@@ -95,7 +96,10 @@ def minimax(board, player):
     return sc
 
 def alphabeta(board, player, alpha = -Eval.WON):
-    """Return score of move."""
+    """
+    Return score of move. 
+    Uses alpha beta pruning algorithm.
+    """
     if is_won(board, player):
         return Eval.WON
     if is_full(board):
