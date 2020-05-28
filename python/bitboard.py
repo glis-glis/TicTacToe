@@ -63,12 +63,13 @@ def is_full(board):
     """Is board full?"""
     return (bboard(board, Players.BOTH)) == BBoard.FULL
 
+WINS = [0b000000111, 0b000111000, 0b111000000,
+                   0b100100100, 0b010010010, 0b001001001,
+                   0b100010001, 0b001010100]
 def is_won(board, player):
     """Is position won?"""
-    WINS = [0b000000111, 0b000111000, 0b111000000,
-            0b100100100, 0b010010010, 0b001001001,
-            0b100010001, 0b001010100]
-    return any([bboard(board, player) & bw == bw for bw in WINS])
+    bb = bboard(board, player)
+    return any([bb & bw == bw for bw in WINS])
 
 def moves(board):
     """Return all possible moves"""
@@ -97,7 +98,7 @@ def minimax(board, player):
 
 def alphabeta(board, player, alpha = -Eval.WON):
     """
-    Return score of move. 
+    Return score of move.
     Uses alpha beta pruning algorithm.
     """
     if is_won(board, player):

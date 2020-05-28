@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iostream>
@@ -10,12 +12,8 @@ namespace bitboard
 {
 // Type definitions
 
-/**
-All information of the board, i.e. all three bitboard (1e player, 2e player,
-both blayers)
- **/
-using Board  = int;
 using BBoard = int; /// One bitboard
+using Board  = int; /// All three bitboard
 using Player = int; /// 0, 9, or 18
 using Move   = int; /// From 0 to 8
 using Eval   = int; /// -1, 0 or 1
@@ -25,7 +23,7 @@ enum BBoards { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 }; /// Bitboard constants
 enum Evals { DRAW = 0, WON = 1 };                     /// Evaluation constants
 
 /// Return other player.
-BBoard other(const Player p)
+Player other(const Player p)
 {
 	// 0^9 -> 9
 	// 9^9 -> 0
@@ -75,13 +73,39 @@ bool is_full(const Board b)
 }
 
 /// Is board b won?
-bool is_won(const Board b, const Player p) { return true; }
+bool is_won(const Board b, const Player p) {
+	constexpr std::array<BBoard, 8> WINS = {
+	        0b000000111, 0b000111000, 0b111000000, 0b100100100,
+	        0b010010010, 0b001001001, 0b100010001, 0b001010100};
+
+	const BBoard bb = bboard(b, p);
+	return std::any_of(WINS.begin(), WINS.end(),
+	                   [bb](const BBoard w) { return (w & bb) == w; });
+}
 
 /**    
 Return score of move (already played in order not to put it onto the stack).
 Uses minimax (negamax) algorithm.
 **/
-Eval minimax(const Board b, const Player p) { return -Evals::WON; }
+Eval minimax(const Board b, const Player p) {
+	if (is_won(b, p)) {
+		return Evals::WON;
+	}
+	if (is_full(b)) {
+		return Evals::DRAW;
+	}
+
+	Eval         e  = Evals::WON;
+	const Player o  = other(p);
+	const BBoard bb = bboard(b, Players::BOTH);
+	for (Move m = 0; m < BBoards::LENGTH && e != -Evals::WON; ++m) {
+		if ((bb >> m) & 1) {
+			continue;	
+		}
+		e = std::min(e, -minimax(play(b, o, m), o));
+	}
+	return e;
+}
 
 /**    
 Return score of move (already played in order not to put it onto the stack).
@@ -155,5 +179,13 @@ void test()
 
 	// is_won
 	assert(!is_won(BBoards::EMPTY, Players::ONE));
+
+	// minimax
+	b = play(BBoards::EMPTY, Players::ONE, 0);
+	assert(minimax(b, Players::ONE) == Evals::DRAW);
+	b = play(b, Players::ONE, 1);
+	assert(minimax(b, Players::ONE) == Evals::WON);
+	assert(minimax(b, Players::TWO) == -Evals::WON);
+
 }
 } // namespace bitboard
