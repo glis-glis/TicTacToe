@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cassert>
 #include <cstdint>
 #include <iostream>
@@ -12,15 +13,27 @@ namespace bitboard
 {
 // Type definitions
 
-using BBoard = int; /// One bitboard
-using Board  = int; /// All three bitboard
-using Player = int; /// 0, 9, or 18
-using Move   = int; /// From 0 to 8
+using BBoard = unsigned int; /// One bitboard
+using Board  = unsigned int; /// All three bitboard
+using Player = unsigned int; /// 0, 9, or 18
+using Move   = unsigned int; /// From 0 to 8
 using Eval   = int; /// -1, 0 or 1
 
-enum Players { ONE = 0, TWO = 9, BOTH = 18 }; /// Index of start of bitboards
-enum BBoards { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 }; /// Bitboard constants
-enum Evals { DRAW = 0, WON = 1 };                     /// Evaluation constants
+/// Index of start of bitboards
+enum Players : Player {
+	ONE  = 0,
+	TWO  = 9,
+	BOTH = 18
+};
+
+/// Bitboard constants
+enum BBoards : BBoard {
+	EMPTY  = 0,
+	FULL   = 0x1FF,
+	LENGTH = 9
+};
+/// Evaluation constants
+enum Evals : Eval { DRAW = 0, WON = 1 };
 
 /// Return other player.
 Player other(const Player p)
@@ -83,6 +96,17 @@ bool is_won(const Board b, const Player p) {
 	                   [bb](const BBoard w) { return (w & bb) == w; });
 }
 
+/// Find first unset bit
+Move find_first(const BBoard bb) {
+	return std::countr_one(bb);
+}
+
+/// Find next unset bit after m
+Move find_next(const BBoard bb, const Move m) {
+	const Move next = m + 1;
+	return next + std::countr_one(bb >> next);
+}
+
 /**    
 Return score of move (already played in order not to put it onto the stack).
 Uses minimax (negamax) algorithm.
@@ -94,14 +118,12 @@ Eval minimax(const Board b, const Player p) {
 	if (is_full(b)) {
 		return Evals::DRAW;
 	}
-
 	Eval         e  = Evals::WON;
 	const Player o  = other(p);
 	const BBoard bb = bboard(b, Players::BOTH);
-	for (Move m = 0; m < BBoards::LENGTH && e != -Evals::WON; ++m) {
-		if ((bb >> m) & 1) {
-			continue;	
-		}
+
+	for (Move m = find_first(bb); m < BBoards::LENGTH && e != -Evals::WON;
+	     m = find_next(bb, m)) {
 		e = std::min(e, -minimax(play(b, o, m), o));
 	}
 	return e;
@@ -111,18 +133,51 @@ Eval minimax(const Board b, const Player p) {
 Return score of move (already played in order not to put it onto the stack).
 Uses alpha beta pruning algorithm.
 **/
-Eval alphabeta(const Board b, const Player p, const Eval alpha = Evals::WON)
+Eval alphabeta(const Board b, const Player p, const Eval alpha = -Evals::WON)
 { 
-	return -Evals::WON;
+	if (is_won(b, p)) {
+		return Evals::WON;
+	}
+	if (is_full(b)) {
+		return Evals::DRAW;
+	}
+	Eval         beta = Evals::WON;
+	const Player o    = other(p);
+	const BBoard bb   = bboard(b, Players::BOTH);
+
+	for (Move m = find_first(bb); m < BBoards::LENGTH && beta > alpha;
+	     m      = find_next(bb, m)) {
+		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
+	}
+	return beta;
 }
 
 /**
 Return best move.
 If randomize is set, chose randomly between moves with equal score.
  **/
-Move best_move(const Board b, const Player p, const bool randomize = true)
+std::pair<Move, Eval> best_move(const Board b, const Player p,
+                                const bool randomize = true)
 {
-	return -1;
+
+	std::random_device                    r;
+	std::default_random_engine            rand_engine(r());
+	std::bernoulli_distribution           rand_bool;
+
+	Eval ev = -2*Evals::WON;
+	Move mo = -1;
+	for (Move m = 0; m < BBoards::LENGTH; ++m) {
+		Eval e = alphabeta(play(b, p, m), p);
+		if (e > ev) {
+			ev = e;
+			mo = m;
+		}
+		else if (randomize && e == ev && rand_bool(rand_engine)) {
+			ev = e;
+			mo = m;
+		}
+	}
+	return std::make_pair(mo, ev);
 }
 
 void test()
@@ -187,5 +242,19 @@ void test()
 	assert(minimax(b, Players::ONE) == Evals::WON);
 	assert(minimax(b, Players::TWO) == -Evals::WON);
 
+	// alphabeta
+	b = play(BBoards::EMPTY, Players::ONE, 0);
+	assert(alphabeta(b, Players::ONE) == Evals::DRAW);
+	b = play(b, Players::ONE, 1);
+	assert(alphabeta(b, Players::ONE) == Evals::WON);
+	assert(alphabeta(b, Players::TWO) == -Evals::WON);
+
+	// best_move
+	assert(best_move(BBoards::EMPTY, Players::ONE, false) ==
+		std::make_pair(Move(0), Eval(0)));
+	assert(best_move(BBoards::EMPTY, Players::ONE).second == Evals::DRAW);
+	// b.one = 0b110000000 and is won whoever plays
+	assert(best_move(b, Players::ONE).second == Evals::WON);
+	assert(best_move(b, Players::TWO).second == -Evals::WON);
 }
 } // namespace bitboard

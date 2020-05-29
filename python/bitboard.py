@@ -131,7 +131,7 @@ def best_move(board, player, randomize=True):
         if sci > sc:
             sc = sci
             m  = mi
-        if randomize and sci == sc and getrandbits(1):
+        elif randomize and sci == sc and getrandbits(1):
             sc = sci
             m  = mi
     return m, sc
