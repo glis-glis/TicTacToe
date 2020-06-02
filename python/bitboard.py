@@ -11,6 +11,7 @@ performed for performance reasons.
 
 from random import randint, getrandbits
 from enum import IntEnum
+import re
 
 class Players(IntEnum):
     """Index of start of bitboards"""
@@ -142,14 +143,21 @@ def str2move(smove):
     Parse coordinates to move (0-8).
     Return -1 if illegal move.
     """
-    smove = smove.lower()
-    if (not smove
-        or (len(smove) != 2)
-        or smove[0] not in "abc"
-        or smove[1] not in "123"):
+
+    r = re.compile(r"^[a-cA-C][1-3]$")
+    if not r.match(smove):
         return -1
 
-    return (int(smove[1]) - 1)*3 + ord(smove[0]) - ord('a')
+    return (int(smove[1]) - 1)*3 + ord(smove[0].lower()) - ord('a')
+
+    #smove = smove.lower()
+    #if (not smove
+    #    or (len(smove) != 2)
+    #    or smove[0] not in "abc"
+    #    or smove[1] not in "123"):
+    #    return -1
+
+    #return (int(smove[1]) - 1)*3 + ord(smove[0]) - ord('a')
 
 def move2str(move):
     """
@@ -170,13 +178,12 @@ def str2board(sboard):
     'x' -> player 1
     'o' -> player 2
     """
-    sboard = sboard.lower()
 
-    if (not sboard
-        or len(sboard) != 9
-        or set(sboard).difference(set(".ox"))):
+    r      = re.compile("^[.xoXO]{9}$")
+    if not r.match(sboard):
         return -1
 
+    sboard = sboard.lower()
     board = 0
     for i, s in enumerate(sboard):
         if s == "x":
@@ -211,7 +218,10 @@ def board2str(board):
 
 def str2player(splayer):
     """Parse string to player"""
-    if len(splayer) > 1:
+
+    r = re.compile("^[xoXO12]$")
+
+    if not r.match(splayer):
         return -1
 
     splayer = splayer.lower()
