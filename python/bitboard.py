@@ -150,15 +150,6 @@ def str2move(smove):
 
     return (int(smove[1]) - 1)*3 + ord(smove[0].lower()) - ord('a')
 
-    #smove = smove.lower()
-    #if (not smove
-    #    or (len(smove) != 2)
-    #    or smove[0] not in "abc"
-    #    or smove[1] not in "123"):
-    #    return -1
-
-    #return (int(smove[1]) - 1)*3 + ord(smove[0]) - ord('a')
-
 def move2str(move):
     """
     Parse move (0-8) to coordinates.

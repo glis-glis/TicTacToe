@@ -15,8 +15,8 @@ namespace bitboard
 
 using BBoard = unsigned int; /// One bitboard
 using Board  = unsigned int; /// All three bitboard
-using Player = unsigned int; /// 0, 9, or 18
-using Move   = unsigned int; /// From 0 to 8
+using Player = int; /// 0, 9, or 18
+using Move   = int; /// From 0 to 8, however, the <bit> functions return signed
 using Eval   = int; /// -1, 0 or 1
 
 /// Index of start of bitboards
@@ -118,12 +118,12 @@ Eval minimax(const Board b, const Player p) {
 	if (is_full(b)) {
 		return Evals::DRAW;
 	}
-	Eval         e  = Evals::WON;
-	const Player o  = other(p);
-	const BBoard bb = bboard(b, Players::BOTH);
-
-	for (Move m = find_first(bb); m < BBoards::LENGTH && e != -Evals::WON;
-	     m = find_next(bb, m)) {
+	const Player o = other(p);
+	// Mutable:
+	Eval   e  = Evals::WON;
+	BBoard bb = bboard(b, Players::BOTH);
+	for (Move m = find_first(bb); m < Players::TWO && e != -Evals::WON;
+	     bb ^= (1 << m), m = find_first(bb)) {
 		e = std::min(e, -minimax(play(b, o, m), o));
 	}
 	return e;
@@ -141,12 +141,12 @@ Eval alphabeta(const Board b, const Player p, const Eval alpha = -Evals::WON)
 	if (is_full(b)) {
 		return Evals::DRAW;
 	}
-	Eval         beta = Evals::WON;
-	const Player o    = other(p);
-	const BBoard bb   = bboard(b, Players::BOTH);
-
-	for (Move m = find_first(bb); m < BBoards::LENGTH && beta > alpha;
-	     m      = find_next(bb, m)) {
+	const Player o = other(p);
+	// Mutable:
+	Eval   beta = Evals::WON;
+	BBoard bb   = bboard(b, Players::BOTH);
+	for (Move m = find_first(bb); m < Players::TWO && beta > alpha;
+	     bb ^= (1 << m), m = find_first(bb)) {
 		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
 	}
 	return beta;
@@ -164,9 +164,13 @@ std::pair<Move, Eval> best_move(const Board b, const Player p,
 	std::default_random_engine            rand_engine(r());
 	std::bernoulli_distribution           rand_bool;
 
-	Eval ev = -2*Evals::WON;
-	Move mo = -1;
-	for (Move m = 0; m < BBoards::LENGTH; ++m) {
+	// Mutable:
+	Eval   ev = -2 * Evals::WON;
+	Move   mo = -1;
+	BBoard bb = bboard(b, Players::BOTH);
+	for (Move m = find_first(bb); m < Players::TWO;
+	     bb ^= (1 << m), m = find_first(bb)) {
+		//for (Move m = 0; m < BBoards::LENGTH; ++m) {
 		Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
@@ -200,13 +204,13 @@ void test()
 	assert(bboard(BBoards::EMPTY, Players::ONE) == BBoards::EMPTY);
 	assert(bboard(BBoards::EMPTY, Players::TWO) == BBoards::EMPTY);
 	assert(bboard(BBoards::EMPTY, Players::BOTH) == BBoards::EMPTY);
-	for (int b = BBoards::EMPTY; b < BBoards::FULL + 1; ++b) {
+	for (BBoard bb = BBoards::EMPTY; bb < BBoards::FULL + 1; ++bb) {
 		const BBoard noise1 = rand_bboard(rand_engine);
 		const BBoard noise2 = rand_bboard(rand_engine);
-		const Board b1 = board(b, noise2);
-		const Board b2 = board(noise1, b);
-		assert(bboard(b1, Players::ONE) == b);
-		assert(bboard(b2, Players::TWO) == b);
+		const Board b1 = board(bb, noise2);
+		const Board b2 = board(noise1, bb);
+		assert(bboard(b1, Players::ONE) == bb);
+		assert(bboard(b2, Players::TWO) == bb);
 	}
 
 	// is_legal
