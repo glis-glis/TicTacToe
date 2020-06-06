@@ -1,12 +1,12 @@
 #include <iostream>
 
 #include "bitboard.hpp"
+#include "engine.hpp"
 
 
 int main()
 {
-	std::cout << "Running tests...\n";
 	bitboard::test();
-	std::cout << "...done\n";
+	tictactoe::test();
 	return 0;
 }
