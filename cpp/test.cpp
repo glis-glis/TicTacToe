@@ -6,7 +6,7 @@
 
 int main()
 {
-	bitboard::test();
+	tictactoe::bitboard::test();
 	tictactoe::test();
 	return 0;
 }

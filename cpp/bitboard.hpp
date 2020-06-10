@@ -12,9 +12,12 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <random>
 #include <vector>
 
+namespace tictactoe
+{
 namespace bitboard
 {
 // Type definitions
@@ -268,3 +271,4 @@ void test()
 	assert(best_move(b, Players::TWO).second == -Evals::WON);
 }
 } // namespace bitboard
+} // namespace tictactoe

@@ -1,18 +1,11 @@
 * TicTacToe
-This is a Python implementation if TicTacToe, using Bitboards.
+Python and C++ implementations of TicTacToe, using Bitboards.
 
-* Usage
-** Clone a Copy and run the test
-#+BEGIN_SRC
-$ git clone https://github.com/afue/TicTacToe.git
-$ cd TicTacToe
-$ chmod +x bin/run
-$ cd python
-$ pytest
-#+END_SRC
+* Why a Trivial Board Game?
+The ideal of this project is to use it as an advanced "Hello World"
+project to test new features in languages I know and to try new
+languages.
 
-** Play a game
-~bin/run~
 
 * Design Choices
 ** Bitboards
@@ -20,9 +13,46 @@ $ pytest
 - One 32bit (or more) integer is enough to save all these
 - No boundary nor type check done on bitboard functions, only on the string interface
 
-** Engine Interface
-- Use strings to interact between user and Engine
-- No use of exceptions, use Boolean when function call can fail
+** Simplicity
+- Only implement features you need right now
+- Use stand-alone functions if possible
 
-** Test Cases
-- Use assert statements for test cases
+** Engine interface
+- Use strings and booleans to interact between user and Engine
+- No use of exceptions, use boolean when function call can fail
+
+** Testing
+- Use REPL-driven development for Python and Test-driven development for C++
+- Use Test cases for each function
+- Test boundary conditions
+- Use the simplest test facilities, i.e. assert-statements
+
+* Language Implementations
+** Python
+This version is finished and functioning, although regular changes are
+added to improve readability, be more idiomatic and improve
+performance
+** C++
+The Bitboard part is finished, the template of the engine interface is
+written but not yet implemented. I make use of c++20 features, mostly
+the new STL <bit> library. The use of modules is also a further plan.
+** Others
+The project welcomes contributions of developers with expertise in
+different languages.
+
+* Usage
+** Clone a copy and run the test
+#+BEGIN_SRC
+$ git clone https://github.com/afue/TicTacToe.git
+$ cd TicTacToe
+$ chmod +x bin/run
+$ cd python
+$ pytest
+$ cd ../cpp
+$ cmake .
+$ cmake --build .
+$ ./test
+#+END_SRC
+
+** Play a game
+~bin/run~
