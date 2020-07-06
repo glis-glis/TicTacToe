@@ -5,6 +5,7 @@ project(TicTacToe)
 
 # add the executable
 add_executable(test test.cpp)
+add_executable(tictactoe main.cpp)
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)

@@ -105,6 +105,12 @@ bool is_won(const Board b, const Player p) {
 	                   [bb](const BBoard w) { return (w & bb) == w; });
 }
 
+bool is_move(const Board b, const Move m)
+{
+	return static_cast<unsigned int>(m) < 9 &&
+	       (play(b, Players::BOTH, m) != b);
+}
+
 /// Find first unset bit
 Move find_first(const BBoard bb) {
 	return std::countr_one(bb);
@@ -222,7 +228,7 @@ void test()
 		assert(bboard(b2, Players::TWO) == bb);
 	}
 
-	// is_legal
+	// is_legal, is_move
 	assert(is_legal(board(BBoards::EMPTY, BBoards::EMPTY)));
 	assert(is_legal(board(1, BBoards::EMPTY)));
 	assert(!is_legal(1));
@@ -234,6 +240,8 @@ void test()
 		              Players::ONE) ==
 		       bboard(play(BBoards::EMPTY, Players::TWO, m),
 		              Players::TWO));
+		assert(is_move(b, m));
+		assert(!is_move(b, m-1));
 		b = play(b, p, m);
 		p = other(p);
 		assert(is_legal(b));
