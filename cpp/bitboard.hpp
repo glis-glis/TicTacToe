@@ -220,13 +220,18 @@ std::optional<Board> str2board(const std::string &s)
 	return b;
 }
 
-std::optional<Move> str2move(const std::string &s)
+std::optional<Move> str2move(Board b, const std::string &s)
 {
 	std::regex re("^[a-cA-C][1-3]$");
 	if (!std::regex_match(s, re)) {
 		return {};
 	}
-	return int(s[1] - 1)*3 + (toupper(s[0]) - 'A');
+	const Move m = (s[1] - '1')*3 + (toupper(s[0]) - 'A');
+
+	if (is_move(b, m)) {
+		return m;
+	}
+	return {};
 }
 
 void test()

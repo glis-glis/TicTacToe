@@ -62,7 +62,7 @@ class Engine
 		const auto p = (player == Player::ONE ? bitboard::Players::ONE
 		                                      : bitboard::Players::TWO);
 
-		if (const auto m = bitboard::str2move(move)) {
+		if (const auto m = bitboard::str2move(this->_board, move)) {
 			this->_board = bitboard::play(this->_board, p, *m);
 			return true;
 		}
