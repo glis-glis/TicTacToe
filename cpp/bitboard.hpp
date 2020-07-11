@@ -15,6 +15,7 @@
 #include <optional>
 #include <random>
 #include <vector>
+#include <regex>
 
 namespace tictactoe
 {
@@ -197,6 +198,35 @@ std::pair<Move, Eval> best_move(const Board b, const Player p,
 		}
 	}
 	return std::make_pair(mo, ev);
+}
+
+std::optional<Board> str2board(const std::string &s)
+{
+	std::regex re("^[.xoXO]{9}$");
+	if (!std::regex_match(s, re)) {
+		return {};
+	}
+	Board b = BBoards::EMPTY;
+	for (size_t i = 0; i < BBoards::LENGTH; ++i) {
+		const auto c = toupper(s[i]);
+		if (c == 'X') {
+			b = play(b, Players::ONE, Move(i));
+		}
+		else if (c == 'O') {
+			b = play(b, Players::TWO, Move(i));
+		}
+	}
+
+	return b;
+}
+
+std::optional<Move> str2move(const std::string &s)
+{
+	std::regex re("^[a-cA-C][1-3]$");
+	if (!std::regex_match(s, re)) {
+		return {};
+	}
+	return int(s[1] - 1)*3 + (toupper(s[0]) - 'A');
 }
 
 void test()
