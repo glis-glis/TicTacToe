@@ -14,13 +14,6 @@
 namespace tictactoe
 {
 
-enum class Player : bool { ONE, TWO };
-
-Player other(Player p)
-{
-	return static_cast<Player>(!static_cast<bool>(p));
-}
-
 class Engine
 {
     public:
@@ -43,9 +36,8 @@ class Engine
 
 	bool is_won(Player player) const noexcept
 	{
-		const auto p = (player == Player::ONE ? bitboard::Players::ONE
-		                                      : bitboard::Players::TWO);
-		return bitboard::is_won(this->_board, p);
+		return bitboard::is_won(this->_board,
+		                        bitboard::bplayer(player));
 	}
 	bool is_full()  const noexcept
 	{
@@ -57,23 +49,36 @@ class Engine
 	}
 
 	/// Play `move` for `player`, return new board
-	bool play(Player player, std::string move) noexcept 
+	bool play(Player player, std::string move) noexcept
 	{
-		const auto p = (player == Player::ONE ? bitboard::Players::ONE
-		                                      : bitboard::Players::TWO);
-
 		if (const auto m = bitboard::str2move(this->_board, move)) {
-			this->_board = bitboard::play(this->_board, p, *m);
+			this->_board = bitboard::play(
+			        this->_board, bitboard::bplayer(player), *m);
 			return true;
 		}
 		return false;
 	}
 
 	/// Return actual board
-	std::string board() const noexcept { return ""; }
+	std::string board() const noexcept {
+
+		if (const auto s = bitboard::board2str(this->_board)) {
+			return *s;
+		}
+		return std::string(9, '.');
+	}
 
 	/// Play best move for `player`, return new board
-	bool play_best(Player player) noexcept { return bool(player); }
+	bool play_best(Player player) noexcept
+	{
+		if (is_finished()) {
+			return false;
+		}
+		const auto bp = bitboard::bplayer(player);
+		const auto m  = bitboard::best_move(this->_board, bp).first;
+		this->_board = bitboard::play(this->_board, bp, m);
+		return true;
+	}
 
     private:
 	bitboard::Board _board = bitboard::BBoards::EMPTY;
@@ -82,7 +87,12 @@ class Engine
 
 
 std::ostream &operator<<(std::ostream &os, const Engine e) { 
-	return os << e.board();
+	const auto b = e.board();
+	return os << "3|" << b.substr(6, 3) << "|\n"
+	          << "2|" << b.substr(3, 3) << "|\n"
+	          << "1|" << b.substr(0, 3) << "|\n"
+	          << "  --- \n"
+	          << " |abc|";
 }
 
 void test()
@@ -111,19 +121,19 @@ void test()
 
 	assert(e.play(Player::TWO, "b1"));
 	assert(!e.play(Player::TWO, "b1"));
-	assert(e.board() == "x..o.....");
+	assert(e.board() == "xo.......");
 
 	assert(e.play(Player::ONE, "b2"));
 	assert(!e.play(Player::ONE, "b2"));
-	assert(e.board() == "x..ox....");
+	assert(e.board() == "xo..x....");
 
 	assert(e.play(Player::TWO, "b3"));
 	assert(!e.play(Player::TWO, "b3"));
-	assert(e.board() == "x..oxo...");
+	assert(e.board() == "xo..x..o.");
 
 	assert(e.play(Player::ONE, "c3"));
 	assert(!e.play(Player::ONE, "c3"));
-	assert(e.board() == "x..ox0..x");
+	assert(e.board() == "xo..x..ox");
 
 	assert(e.is_won(Player::ONE));
 	assert(e.is_finished());

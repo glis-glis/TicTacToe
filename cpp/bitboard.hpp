@@ -19,22 +19,35 @@
 
 namespace tictactoe
 {
+
+enum class Player : bool { ONE, TWO };
+
+Player other(Player p)
+{
+	return static_cast<Player>(!static_cast<bool>(p));
+}
+
 namespace bitboard
 {
 // Type definitions
 
 using BBoard = unsigned int; /// One bitboard
 using Board  = unsigned int; /// All three bitboard
-using Player = int; /// 0, 9, or 18
+using BPlayer = int; /// 0, 9, or 18
 using Move   = int; /// From 0 to 8, however, the <bit> functions return signed
 using Eval   = int; /// -1, 0 or 1
 
 /// Index of start of bitboards
-enum Players : Player {
+enum BPlayers : BPlayer {
 	ONE  = 0,
 	TWO  = 9,
 	BOTH = 18
 };
+
+BPlayer bplayer(Player p)
+{
+	return p == Player::ONE ? BPlayers::ONE : BPlayers::TWO;
+}
 
 /// Bitboard constants
 enum BBoards : BBoard {
@@ -46,11 +59,11 @@ enum BBoards : BBoard {
 enum Evals : Eval { DRAW = 0, WON = 1 };
 
 /// Return other player.
-Player other(const Player p)
+BPlayer other(const BPlayer p)
 {
 	// 0^9 -> 9
 	// 9^9 -> 0
-	return p ^ Players::TWO;
+	return p ^ BPlayers::TWO;
 }
 
 /**
@@ -59,14 +72,14 @@ performance reason!
  **/
 Board board(const BBoard b1, const BBoard b2)
 {
-	return b1 | (b2 << Players::TWO) | ((b1 | b2) << Players::BOTH);
+	return b1 | (b2 << BPlayers::TWO) | ((b1 | b2) << BPlayers::BOTH);
 }
 
 /**
 Return bitboard of board b for player p. No boundary nor type check for
 performance reason!
  **/
-BBoard bboard(const Board b, const Player p)
+BBoard bboard(const Board b, const BPlayer p)
 {
 	return (b >> p) & BBoards::FULL;
 }
@@ -75,28 +88,28 @@ BBoard bboard(const Board b, const Player p)
 Play move for player and return new board
 No boundary nor type check for performance reason!
 **/
-Board play(const Board b, const Player p, const Move m)
+Board play(const Board b, const BPlayer p, const Move m)
 {
-	return b | (1 << (m + p)) | (1 << (m + Players::BOTH));
+	return b | (1 << (m + p)) | (1 << (m + BPlayers::BOTH));
 }
 
 /// Is board b legal?
 bool is_legal(const Board b)
 {
-	const BBoard bb1     = bboard(b, Players::ONE);
-	const BBoard bb2     = bboard(b, Players::TWO);
-	const BBoard bb_both = bboard(b, Players::BOTH);
+	const BBoard bb1     = bboard(b, BPlayers::ONE);
+	const BBoard bb2     = bboard(b, BPlayers::TWO);
+	const BBoard bb_both = bboard(b, BPlayers::BOTH);
 	return !(bb1 & bb2) && ((bb1 | bb2) == bb_both);
 }
 
 /// Is board b full?
 bool is_full(const Board b)
 {
-	return bboard(b, Players::BOTH) == BBoards::FULL;
+	return bboard(b, BPlayers::BOTH) == BBoards::FULL;
 }
 
 /// Is board b won?
-bool is_won(const Board b, const Player p) {
+bool is_won(const Board b, const BPlayer p) {
 	constexpr std::array<BBoard, 8> WINS = {
 	        0b000000111, 0b000111000, 0b111000000, 0b100100100,
 	        0b010010010, 0b001001001, 0b100010001, 0b001010100};
@@ -109,7 +122,7 @@ bool is_won(const Board b, const Player p) {
 bool is_move(const Board b, const Move m)
 {
 	return static_cast<unsigned int>(m) < 9 &&
-	       (play(b, Players::BOTH, m) != b);
+	       (play(b, BPlayers::BOTH, m) != b);
 }
 
 /// Find first unset bit
@@ -127,18 +140,18 @@ Move find_next(const BBoard bb, const Move m) {
 Return score of move (already played in order not to put it onto the stack).
 Uses minimax (negamax) algorithm.
 **/
-Eval minimax(const Board b, const Player p) {
+Eval minimax(const Board b, const BPlayer p) {
 	if (is_won(b, p)) {
 		return Evals::WON;
 	}
 	if (is_full(b)) {
 		return Evals::DRAW;
 	}
-	const Player o = other(p);
+	const BPlayer o = other(p);
 	// Mutable:
 	Eval   e  = Evals::WON;
-	BBoard bb = bboard(b, Players::BOTH);
-	for (Move m = find_first(bb); m < Players::TWO && e != -Evals::WON;
+	BBoard bb = bboard(b, BPlayers::BOTH);
+	for (Move m = find_first(bb); m < BPlayers::TWO && e != -Evals::WON;
 	     bb ^= (1 << m), m = find_first(bb)) {
 		e = std::min(e, -minimax(play(b, o, m), o));
 	}
@@ -149,7 +162,7 @@ Eval minimax(const Board b, const Player p) {
 Return score of move (already played in order not to put it onto the stack).
 Uses alpha beta pruning algorithm.
 **/
-Eval alphabeta(const Board b, const Player p, const Eval alpha = -Evals::WON)
+Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Evals::WON)
 { 
 	if (is_won(b, p)) {
 		return Evals::WON;
@@ -157,11 +170,11 @@ Eval alphabeta(const Board b, const Player p, const Eval alpha = -Evals::WON)
 	if (is_full(b)) {
 		return Evals::DRAW;
 	}
-	const Player o = other(p);
+	const BPlayer o = other(p);
 	// Mutable:
 	Eval   beta = Evals::WON;
-	BBoard bb   = bboard(b, Players::BOTH);
-	for (Move m = find_first(bb); m < Players::TWO && beta > alpha;
+	BBoard bb   = bboard(b, BPlayers::BOTH);
+	for (Move m = find_first(bb); m < BPlayers::TWO && beta > alpha;
 	     bb ^= (1 << m), m = find_first(bb)) {
 		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
 	}
@@ -172,7 +185,7 @@ Eval alphabeta(const Board b, const Player p, const Eval alpha = -Evals::WON)
 Return best move.
 If randomize is set, chose randomly between moves with equal score.
  **/
-std::pair<Move, Eval> best_move(const Board b, const Player p,
+std::pair<Move, Eval> best_move(const Board b, const BPlayer p,
                                 const bool randomize = true)
 {
 
@@ -183,8 +196,8 @@ std::pair<Move, Eval> best_move(const Board b, const Player p,
 	// Mutable:
 	Eval   ev = -2 * Evals::WON;
 	Move   mo = -1;
-	BBoard bb = bboard(b, Players::BOTH);
-	for (Move m = find_first(bb); m < Players::TWO;
+	BBoard bb = bboard(b, BPlayers::BOTH);
+	for (Move m = find_first(bb); m < BPlayers::TWO;
 	     bb ^= (1 << m), m = find_first(bb)) {
 		//for (Move m = 0; m < BBoards::LENGTH; ++m) {
 		Eval e = alphabeta(play(b, p, m), p);
@@ -208,16 +221,37 @@ std::optional<Board> str2board(const std::string &s)
 	}
 	Board b = BBoards::EMPTY;
 	for (size_t i = 0; i < BBoards::LENGTH; ++i) {
-		const auto c = toupper(s[i]);
-		if (c == 'X') {
-			b = play(b, Players::ONE, Move(i));
+		const auto c = tolower(s[i]);
+		if (c == 'x') {
+			b = play(b, BPlayers::ONE, Move(i));
 		}
-		else if (c == 'O') {
-			b = play(b, Players::TWO, Move(i));
+		else if (c == 'o') {
+			b = play(b, BPlayers::TWO, Move(i));
 		}
 	}
 
 	return b;
+}
+
+std::optional<std::string> board2str(Board b)
+{
+	if (!is_legal(b)) {
+		return {};
+	}
+	const auto one = bboard(b, BPlayers::ONE);
+	const auto two = bboard(b, BPlayers::TWO);
+	auto s = std::string(9, '.');
+	for(size_t i  = 0; i < BBoards::LENGTH; ++i) {
+		const BBoard bi = 1 << i;	
+		if (one & bi) {
+			s[i] = 'x';
+		}
+		else if (two & bi) {
+			s[i] = 'o';
+		}
+
+	}
+	return s;
 }
 
 std::optional<Move> str2move(Board b, const std::string &s)
@@ -226,7 +260,7 @@ std::optional<Move> str2move(Board b, const std::string &s)
 	if (!std::regex_match(s, re)) {
 		return {};
 	}
-	const Move m = (s[1] - '1')*3 + (toupper(s[0]) - 'A');
+	const Move m = (s[1] - '1')*3 + (tolower(s[0]) - 'a');
 
 	if (is_move(b, m)) {
 		return m;
@@ -242,25 +276,25 @@ void test()
 	std::uniform_int_distribution<BBoard> rand_bboard(0, BBoards::FULL);
 
 	// other
-	assert(other(Players::ONE) == Players::TWO);
-	assert(other(Players::TWO) == Players::ONE);
-	assert(other(other(Players::ONE)) == Players::ONE);
-	assert(other(other(Players::TWO)) == Players::TWO);
+	assert(other(BPlayers::ONE) == BPlayers::TWO);
+	assert(other(BPlayers::TWO) == BPlayers::ONE);
+	assert(other(other(BPlayers::ONE)) == BPlayers::ONE);
+	assert(other(other(BPlayers::TWO)) == BPlayers::TWO);
 
 	// board
 	assert(board(BBoards::EMPTY, BBoards::EMPTY) == BBoards::EMPTY);
 
 	// bboard 
-	assert(bboard(BBoards::EMPTY, Players::ONE) == BBoards::EMPTY);
-	assert(bboard(BBoards::EMPTY, Players::TWO) == BBoards::EMPTY);
-	assert(bboard(BBoards::EMPTY, Players::BOTH) == BBoards::EMPTY);
+	assert(bboard(BBoards::EMPTY, BPlayers::ONE) == BBoards::EMPTY);
+	assert(bboard(BBoards::EMPTY, BPlayers::TWO) == BBoards::EMPTY);
+	assert(bboard(BBoards::EMPTY, BPlayers::BOTH) == BBoards::EMPTY);
 	for (BBoard bb = BBoards::EMPTY; bb < BBoards::FULL + 1; ++bb) {
 		const BBoard noise1 = rand_bboard(rand_engine);
 		const BBoard noise2 = rand_bboard(rand_engine);
 		const Board b1 = board(bb, noise2);
 		const Board b2 = board(noise1, bb);
-		assert(bboard(b1, Players::ONE) == bb);
-		assert(bboard(b2, Players::TWO) == bb);
+		assert(bboard(b1, BPlayers::ONE) == bb);
+		assert(bboard(b2, BPlayers::TWO) == bb);
 	}
 
 	// is_legal, is_move
@@ -269,12 +303,12 @@ void test()
 	assert(!is_legal(1));
 
 	Board  b = BBoards::EMPTY;
-	Player p = Players::ONE;
+	BPlayer p = BPlayers::ONE;
 	for (Move m = 0; m < 9; ++m) {
-		assert(bboard(play(BBoards::EMPTY, Players::ONE, m),
-		              Players::ONE) ==
-		       bboard(play(BBoards::EMPTY, Players::TWO, m),
-		              Players::TWO));
+		assert(bboard(play(BBoards::EMPTY, BPlayers::ONE, m),
+		              BPlayers::ONE) ==
+		       bboard(play(BBoards::EMPTY, BPlayers::TWO, m),
+		              BPlayers::TWO));
 		assert(is_move(b, m));
 		assert(!is_move(b, m-1));
 		b = play(b, p, m);
@@ -283,35 +317,35 @@ void test()
 	}
 
 	// is_full
-	assert(is_full(BBoards::FULL | (BBoards::FULL << Players::BOTH)));
-	assert(is_full((BBoards::FULL << Players::TWO) |
-	               (BBoards::FULL << Players::BOTH)));
+	assert(is_full(BBoards::FULL | (BBoards::FULL << BPlayers::BOTH)));
+	assert(is_full((BBoards::FULL << BPlayers::TWO) |
+	               (BBoards::FULL << BPlayers::BOTH)));
 	assert(!is_full(BBoards::EMPTY));
 
 	// is_won
-	assert(!is_won(BBoards::EMPTY, Players::ONE));
+	assert(!is_won(BBoards::EMPTY, BPlayers::ONE));
 
 	// minimax
-	b = play(BBoards::EMPTY, Players::ONE, 0);
-	assert(minimax(b, Players::ONE) == Evals::DRAW);
-	b = play(b, Players::ONE, 1);
-	assert(minimax(b, Players::ONE) == Evals::WON);
-	assert(minimax(b, Players::TWO) == -Evals::WON);
+	b = play(BBoards::EMPTY, BPlayers::ONE, 0);
+	assert(minimax(b, BPlayers::ONE) == Evals::DRAW);
+	b = play(b, BPlayers::ONE, 1);
+	assert(minimax(b, BPlayers::ONE) == Evals::WON);
+	assert(minimax(b, BPlayers::TWO) == -Evals::WON);
 
 	// alphabeta
-	b = play(BBoards::EMPTY, Players::ONE, 0);
-	assert(alphabeta(b, Players::ONE) == Evals::DRAW);
-	b = play(b, Players::ONE, 1);
-	assert(alphabeta(b, Players::ONE) == Evals::WON);
-	assert(alphabeta(b, Players::TWO) == -Evals::WON);
+	b = play(BBoards::EMPTY, BPlayers::ONE, 0);
+	assert(alphabeta(b, BPlayers::ONE) == Evals::DRAW);
+	b = play(b, BPlayers::ONE, 1);
+	assert(alphabeta(b, BPlayers::ONE) == Evals::WON);
+	assert(alphabeta(b, BPlayers::TWO) == -Evals::WON);
 
 	// best_move
-	assert(best_move(BBoards::EMPTY, Players::ONE, false) ==
+	assert(best_move(BBoards::EMPTY, BPlayers::ONE, false) ==
 		std::make_pair(Move(0), Eval(0)));
-	assert(best_move(BBoards::EMPTY, Players::ONE).second == Evals::DRAW);
+	assert(best_move(BBoards::EMPTY, BPlayers::ONE).second == Evals::DRAW);
 	// b.one = 0b110000000 and is won whoever plays
-	assert(best_move(b, Players::ONE).second == Evals::WON);
-	assert(best_move(b, Players::TWO).second == -Evals::WON);
+	assert(best_move(b, BPlayers::ONE).second == Evals::WON);
+	assert(best_move(b, BPlayers::TWO).second == -Evals::WON);
 }
 } // namespace bitboard
 } // namespace tictactoe

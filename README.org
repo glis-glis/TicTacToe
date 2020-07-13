@@ -33,9 +33,10 @@ This version is finished and functioning, although regular changes are
 added to improve readability, be more idiomatic and improve
 performance
 ** C++
-The Bitboard part is finished, the template of the engine interface is
-written but not yet implemented. I make use of c++20 features, mostly
-the new STL <bit> library. The use of modules is also a further plan.
+This version is also finished and functioning. I make use of c++20
+features, mostly the new STL <bit> library. The string->bitboard and
+reverse functions use std::optional. The use of modules is also
+a further plan.
 ** Others
 The project welcomes contributions of developers with expertise in
 different languages.
@@ -55,4 +56,5 @@ $ ./test
 #+END_SRC
 
 ** Play a game
-~bin/run~
+- ~bin/runpy~ runs the python version
+- ~bin/runcpp~ runs the C++ version
