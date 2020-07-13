@@ -56,7 +56,7 @@ enum BBoards : BBoard {
 	LENGTH = 9
 };
 /// Evaluation constants
-enum Evals : Eval { DRAW = 0, WON = 1 };
+	enum Evals : Eval { DRAW = 0, WON = 1 << BPlayers::BOTH };
 
 /// Return other player.
 BPlayer other(const BPlayer p)
@@ -69,7 +69,7 @@ BPlayer other(const BPlayer p)
 /**
 Return board of bitboards b1 and b2. No boundary nor type check for
 performance reason!
- **/
+ */
 Board board(const BBoard b1, const BBoard b2)
 {
 	return b1 | (b2 << BPlayers::TWO) | ((b1 | b2) << BPlayers::BOTH);
@@ -78,7 +78,7 @@ Board board(const BBoard b1, const BBoard b2)
 /**
 Return bitboard of board b for player p. No boundary nor type check for
 performance reason!
- **/
+ */
 BBoard bboard(const Board b, const BPlayer p)
 {
 	return (b >> p) & BBoards::FULL;
@@ -87,7 +87,7 @@ BBoard bboard(const Board b, const BPlayer p)
 /**
 Play move for player and return new board
 No boundary nor type check for performance reason!
-**/
+*/
 Board play(const Board b, const BPlayer p, const Move m)
 {
 	return b | (1 << (m + p)) | (1 << (m + BPlayers::BOTH));
@@ -139,7 +139,7 @@ Move find_next(const BBoard bb, const Move m) {
 /**    
 Return score of move (already played in order not to put it onto the stack).
 Uses minimax (negamax) algorithm.
-**/
+*/
 Eval minimax(const Board b, const BPlayer p) {
 	if (is_won(b, p)) {
 		return Evals::WON;
@@ -161,7 +161,7 @@ Eval minimax(const Board b, const BPlayer p) {
 /**    
 Return score of move (already played in order not to put it onto the stack).
 Uses alpha beta pruning algorithm.
-**/
+*/
 Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Evals::WON)
 { 
 	if (is_won(b, p)) {
@@ -178,13 +178,13 @@ Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Evals::WON)
 	     bb ^= (1 << m), m = find_first(bb)) {
 		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
 	}
-	return beta;
+	return beta/2; // The "closer" a win, the higher it's score
 }
 
 /**
 Return best move.
 If randomize is set, chose randomly between moves with equal score.
- **/
+ */
 std::pair<Move, Eval> best_move(const Board b, const BPlayer p,
                                 const bool randomize = true)
 {
@@ -336,16 +336,16 @@ void test()
 	b = play(BBoards::EMPTY, BPlayers::ONE, 0);
 	assert(alphabeta(b, BPlayers::ONE) == Evals::DRAW);
 	b = play(b, BPlayers::ONE, 1);
-	assert(alphabeta(b, BPlayers::ONE) == Evals::WON);
-	assert(alphabeta(b, BPlayers::TWO) == -Evals::WON);
+	assert(alphabeta(b, BPlayers::ONE) > Evals::DRAW);
+	assert(alphabeta(b, BPlayers::TWO) < -Evals::DRAW);
 
 	// best_move
 	assert(best_move(BBoards::EMPTY, BPlayers::ONE, false) ==
 		std::make_pair(Move(0), Eval(0)));
 	assert(best_move(BBoards::EMPTY, BPlayers::ONE).second == Evals::DRAW);
 	// b.one = 0b110000000 and is won whoever plays
-	assert(best_move(b, BPlayers::ONE).second == Evals::WON);
-	assert(best_move(b, BPlayers::TWO).second == -Evals::WON);
+	assert(best_move(b, BPlayers::ONE).second > Evals::DRAW);
+	assert(best_move(b, BPlayers::TWO).second < -Evals::DRAW);
 }
 } // namespace bitboard
 } // namespace tictactoe
