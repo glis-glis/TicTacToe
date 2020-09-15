@@ -1,5 +1,5 @@
 * TicTacToe
-Python and C++ implementations of TicTacToe, using Bitboards.
+Python, C++ and D implementations of TicTacToe, using Bitboards.
 
 * Why a Trivial Board Game?
 The ideal of this project is to use it as an advanced "Hello World"
@@ -37,6 +37,8 @@ This version is also finished and functioning. I make use of c++20
 features, mostly the new STL <bit> library. The string->bitboard and
 reverse functions use std::optional. The use of modules is also
 a further plan.
+** D
+Just started this version. All unit tests pass and minimax seems to be working.
 ** Others
 The project welcomes contributions of developers with expertise in
 different languages.
