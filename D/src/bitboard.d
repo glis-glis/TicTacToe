@@ -8,7 +8,7 @@ module tictactoe.bitboard;
 
 alias BBoard = uint;
 alias Board  = uint;
-alias Move   = uint;
+alias Move   = ulong;
 alias Eval   = int;
 
 enum Player  {ONE = 0, TWO = 9, BOTH = 18};
@@ -95,7 +95,7 @@ Eval minimax(Board b, Player p) {
 	Eval      e     = Evals.WON;
 
 	foreach (m; BitRange(cast(size_t*)&moves, 9)) {
-		e = min(e, -minimax(b.play(o, cast(Move)m), o));	
+		e = min(e, -minimax(b.play(o, m), o));	
 		if (e == -Evals.WON) break;
 	}
 	return e;
@@ -122,7 +122,7 @@ Eval alphabeta(Board b, Player p, Eval alpha = -Evals.WON) {
 	Eval      beta  = Evals.WON;
 
 	foreach (m; BitRange(cast(size_t*)&moves, 9)) {
-		beta = min(beta, -alphabeta(b.play(o, cast(Move)m), o, -beta));	
+		beta = min(beta, -alphabeta(b.play(o, m), o, -beta));	
 		if (beta <= alpha) break;
 	}
 	return beta/2;
@@ -136,4 +136,33 @@ unittest {
 	b = b.play(p, 1);
 	assert(b.alphabeta(p) > Evals.DRAW);
 	assert(b.alphabeta(p.other) < -Evals.DRAW);
+}
+
+auto bestMove(Board b, Player p) {
+	import core.bitop;
+	import std.typecons;
+
+	Eval      e     = -2 * Evals.WON;
+	Move      m     = -1;
+	immutable moves = ~b.bboard(Player.BOTH);
+	foreach (mi; BitRange(cast(size_t*)&moves, 9)) {
+		Eval ei = alphabeta(b.play(p, mi), p);
+		if (ei > e) {
+			e = ei;
+			m = mi;
+		}
+	}
+	return tuple(m, e);
+}
+unittest {
+	import std.typecons;
+
+	Board b;
+	assert(b.bestMove(Player.ONE) == tuple(0, Evals.DRAW));	
+	b = b.play(Player.ONE, 0);
+	assert(b.bestMove(Player.ONE)[1] > Evals.DRAW);	
+	assert(b.bestMove(Player.TWO)[1] == Evals.DRAW);	
+	b = b.play(Player.ONE, 1);
+	assert(b.bestMove(Player.ONE)[1] > Evals.DRAW);	
+	assert(b.bestMove(Player.TWO)[1] < Evals.DRAW);	
 }
