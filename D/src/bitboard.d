@@ -101,7 +101,6 @@ Eval minimax(Board b, Player p) {
 	return e;
 }
 unittest {
-	import core.bitop;
 	Board b;
 	Player p;
 	assert(b.minimax(p) == Evals.DRAW);
@@ -109,4 +108,32 @@ unittest {
 	b = b.play(p, 1);
 	assert(b.minimax(p) == Evals.WON);
 	assert(b.minimax(p.other) == -Evals.WON);
+}
+
+Eval alphabeta(Board b, Player p, Eval alpha = -Evals.WON) {
+	import core.bitop;
+	import std.algorithm;
+
+	if (b.is_won(p)) return Evals.WON;
+	if (b.is_full) return Evals.DRAW;
+
+	immutable o     = p.other;
+	immutable moves = ~b.bboard(Player.BOTH);
+	Eval      beta  = Evals.WON;
+
+	foreach (m; BitRange(cast(size_t*)&moves, 9)) {
+		beta = min(beta, -alphabeta(b.play(o, cast(Move)m), o, -beta));	
+		if (beta <= alpha) break;
+	}
+	return beta/2;
+}
+unittest {
+	Board b;
+	Player p;
+	assert(b.alphabeta(p) == Evals.DRAW);
+	b = b.play(p, 0);
+	assert(b.alphabeta(p) == Evals.DRAW);
+	b = b.play(p, 1);
+	assert(b.alphabeta(p) > Evals.DRAW);
+	assert(b.alphabeta(p.other) < -Evals.DRAW);
 }
