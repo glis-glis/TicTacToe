@@ -6,18 +6,20 @@
 
 module tictactoe.bitboard;
 
-alias BBoard = uint;
-alias Board  = uint;
-alias Move   = ulong;
-alias Eval   = int;
+alias BBoard = uint;  /// One bitboard
+alias Board  = uint;  /// All three bitboard
+alias Move   = ulong; /// From 0 to 8
+alias Eval   = int;   /// -(1 << 18) to (1 << 18)
 
 enum Player  {ONE = 0, TWO = 9, BOTH = 18};
 enum BBoards {EMPTY = 0, FULL = 0x1FF, LENGTH=9};
 enum Evals   {DRAW = 0, WON = 1 << Player.BOTH}
 
+/// Return other player.
 Player other(Player p) {
 	return p ^ Player.TWO;
 }
+///
 unittest {
 	Player p;
 	assert(p == Player.ONE);
@@ -25,16 +27,20 @@ unittest {
 	assert(p.other.other == Player.ONE);
 }
 
+/// Return board of bitboards b1 and b2.
 Board board(BBoard b1, BBoard b2) {
 	return b1 | (b2 << Player.TWO) | ((b1 | b2) << Player.BOTH);
 }
+///
 unittest {
 	assert(board(0, 0) == BBoards.EMPTY);
 }
 
+/// Return bitboard of board b for player p. 
 BBoard bboard(Board b, Player p) {
 	return (b >> p) & BBoards.FULL;
 }
+///
 unittest {
 	assert(0.bboard(Player.ONE) == BBoards.EMPTY);
 	assert(0.bboard(Player.TWO) == BBoards.EMPTY);
@@ -42,9 +48,11 @@ unittest {
 	assert(bboard(0.board(BBoards.FULL), Player.TWO) == BBoards.FULL);
 }
 
+/// Play move for player and return new board
 Board play(Board b, Player p, Move m) {
 	return b | (1 << (m + p)) | (1 << (m + Player.BOTH));
 }
+///
 unittest {
 	foreach(m; 0 .. 9) {
 		auto b = BBoards.EMPTY;
@@ -53,9 +61,11 @@ unittest {
 	}	
 }
 
+/// Is board b full?
 bool is_full(Board b) {
 	return b.bboard(Player.BOTH) == BBoards.FULL;
 }
+///
 unittest {
 	Board b;
 	Player p;
@@ -69,6 +79,7 @@ unittest {
 	assert(b.is_full);
 }
 
+/// Is board b won?
 bool is_won(Board b, Player p) {
 	import std.algorithm;
 	immutable bb = b.bboard(p);
@@ -77,12 +88,16 @@ bool is_won(Board b, Player p) {
 	        0b010010010, 0b001001001, 0b100010001, 0b001010100];
 	return WINS.any!(w => (w & bb) == w);
 }
+///
 unittest {
 	Board b;
 	Player p;
 	assert(b.play(p, 0).play(p, 1).play(p, 2).is_won(p));
 }
 
+/**    
+Return score of move (already played in order not to put it onto the stack).
+Uses minimax (negamax) algorithm.*/
 Eval minimax(Board b, Player p) {
 	import core.bitop;
 	import std.algorithm;
@@ -100,6 +115,7 @@ Eval minimax(Board b, Player p) {
 	}
 	return e;
 }
+///
 unittest {
 	Board b;
 	Player p;
@@ -110,6 +126,9 @@ unittest {
 	assert(b.minimax(p.other) == -Evals.WON);
 }
 
+/**    
+Return score of move (already played in order not to put it onto the stack).
+Uses alpha beta pruning algorithm.*/
 Eval alphabeta(Board b, Player p, Eval alpha = -Evals.WON) {
 	import core.bitop;
 	import std.algorithm;
@@ -127,6 +146,7 @@ Eval alphabeta(Board b, Player p, Eval alpha = -Evals.WON) {
 	}
 	return beta/2;
 }
+///
 unittest {
 	Board b;
 	Player p;
@@ -138,6 +158,9 @@ unittest {
 	assert(b.alphabeta(p.other) < -Evals.DRAW);
 }
 
+/**
+Return best move.
+If randomize is set, chose randomly between moves with equal score.*/
 auto bestMove(Board b, Player p) {
 	import core.bitop;
 	import std.typecons;
@@ -154,6 +177,7 @@ auto bestMove(Board b, Player p) {
 	}
 	return tuple(m, e);
 }
+///
 unittest {
 	import std.typecons;
 
