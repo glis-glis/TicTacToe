@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-module tictactoe.bitboard;
+module bitboard;
 
 alias BBoard = uint;  /// One bitboard
 alias Board  = uint;  /// All three bitboard
@@ -93,6 +93,56 @@ unittest {
 	Board b;
 	Player p;
 	assert(b.play(p, 0).play(p, 1).play(p, 2).is_won(p));
+}
+
+/// Is the move legal?
+bool is_move(Board b, Move m) {
+	return (m < 9) && (b.play(Player.BOTH, m) != b);
+}
+
+Move str2move(string s) {
+	import std.regex;
+	import std.ascii;
+	auto ctr = ctRegex!(`^[a-cA-C][1-3]$`);
+	if (s.matchFirst(ctr).empty) return cast(Move)-1;
+		
+	return (s[1] - '1')*3 + (s[0].toLower - 'a');
+}
+///
+unittest {
+	foreach (char c; "abc") {
+		foreach (char n; "123") {
+			string m = "" ~ c ~ n;
+			assert(0.is_move(str2move(m)));
+		}	
+	}
+	assert(!0.is_move(str2move("d1")));
+}
+
+string board2str(Board b) {
+	import std.conv;
+	immutable one = b.bboard(Player.ONE);
+	immutable two = b.bboard(Player.TWO);
+	string s = "";
+	for (int i = 2; i >= 0; --i) {
+		s ~= "" ~ cast(char)('1' + i) ~ '|';
+		for (int j = 0; j < 3; ++j) {
+			immutable ij = i*3 + j;
+			immutable bij = 1 << ij;
+			if (one & bij) {
+				s ~= 'x';
+			}
+			else if (two & bij) {
+				s ~= 'o';
+			}
+			else {
+				s ~= '.';
+			}
+		}
+		s ~= " |\n";
+	}
+	s ~= "  ---\n |abc|";
+	return s;
 }
 
 /**    
