@@ -1,14 +1,16 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # set the project name
-project(TicTacToe)
+project(TicTacToe LANGUAGES CXX)
 
 # add the executable
-add_executable(test test.cpp)
 add_executable(tictactoe main.cpp)
+target_compile_features(tictactoe PRIVATE cxx_std_20)
+set_target_properties(tictactoe PROPERTIES CXX_EXTENSIONS OFF)
+target_compile_options(tictactoe PRIVATE -Wall -Wextra -Wpedantic)
 
-# specify the C++ standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "-std=c++2a -O3 -Werror -Wall -Wextra -Wconversion -Wsign-conversion -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wlogical-op -Wdouble-promotion -Wformat=2 -Weffc++")
+add_executable(test test.cpp)
+target_compile_features(test PRIVATE cxx_std_20)
+set_target_properties(test PROPERTIES CXX_EXTENSIONS OFF)
+target_compile_options(test PRIVATE -O3 -Wall -Wextra -Wpedantic)
