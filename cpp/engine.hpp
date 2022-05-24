@@ -4,29 +4,29 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#pragma once
+#ifndef ENGINE_HPP
+#define ENGINE_HPP
 
 #include <cassert>
 #include <string>
 
 #include "bitboard.hpp"
 
-namespace tictactoe
-{
+namespace tictactoe {
 
-class Engine
-{
-    public:
+class Engine {
+private:
+	bitboard::Board _board = bitboard::BBoards::EMPTY;
+public:
 	/// Constructor, on purpose without board parameter to remove the need
 	/// of exceptions
-	Engine() noexcept {}
+	constexpr Engine() noexcept {}
 
 	/// set board to `board`, return false if `board` illegal
-	void reset() noexcept { this->_board = bitboard::BBoards::EMPTY; }
+	constexpr void reset() noexcept { this->_board = bitboard::BBoards::EMPTY; }
 
 	/// set board to `board`, return false if `board` illegal
 	bool set(std::string board) noexcept {
-
 		if (const auto b = bitboard::str2board(board)) {
 			this->_board = *b;
 			return true;
@@ -34,26 +34,16 @@ class Engine
 		return false;
 	}
 
-	bool is_won(Player player) const noexcept
-	{
-		return bitboard::is_won(this->_board,
-		                        bitboard::bplayer(player));
-	}
-	bool is_full()  const noexcept
-	{
-		return bitboard::is_full(this->_board);
-	}
-	bool is_finished() const noexcept {
-		return this->is_full() ||
-		       this->is_won(Player::ONE) || this->is_won(Player::TWO);
+	constexpr bool is_won(Player player) const noexcept { return bitboard::is_won(this->_board, bitboard::bplayer(player)); }
+	constexpr bool is_full() const noexcept { return bitboard::is_full(this->_board); }
+	constexpr bool is_finished() const noexcept {
+		return this->is_full() || this->is_won(Player::ONE) || this->is_won(Player::TWO);
 	}
 
 	/// Play `move` for `player`, return new board
-	bool play(Player player, std::string move) noexcept
-	{
+	bool play(Player player, std::string move) noexcept {
 		if (const auto m = bitboard::str2move(this->_board, move)) {
-			this->_board = bitboard::play(
-			        this->_board, bitboard::bplayer(player), *m);
+			this->_board = bitboard::play(this->_board, bitboard::bplayer(player), *m);
 			return true;
 		}
 		return false;
@@ -61,42 +51,30 @@ class Engine
 
 	/// Return actual board
 	std::string board() const noexcept {
-
-		if (const auto s = bitboard::board2str(this->_board)) {
-			return *s;
-		}
+		if (const auto s = bitboard::board2str(this->_board)) { return *s; }
 		return std::string(9, '.');
 	}
 
 	/// Play best move for `player`, return new board
-	bool play_best(Player player) noexcept
-	{
-		if (is_finished()) {
-			return false;
-		}
+	bool play_best(Player player) noexcept {
+		if (is_finished()) { return false; }
 		const auto bp = bitboard::bplayer(player);
 		const auto m  = bitboard::best_move(this->_board, bp).first;
-		this->_board = bitboard::play(this->_board, bp, m);
+		this->_board  = bitboard::play(this->_board, bp, m);
 		return true;
 	}
-
-    private:
-	bitboard::Board _board = bitboard::BBoards::EMPTY;
-
 };
 
-
-std::ostream &operator<<(std::ostream &os, const Engine e) { 
+inline std::ostream &operator<<(std::ostream &os, const Engine e) {
 	const auto b = e.board();
 	return os << "3|" << b.substr(6, 3) << "|\n"
-	          << "2|" << b.substr(3, 3) << "|\n"
-	          << "1|" << b.substr(0, 3) << "|\n"
-	          << "  --- \n"
-	          << " |abc|";
+			  << "2|" << b.substr(3, 3) << "|\n"
+			  << "1|" << b.substr(0, 3) << "|\n"
+			  << "  --- \n"
+			  << " |abc|";
 }
 
-void test()
-{
+inline void test() {
 	Engine e;
 	assert(!e.is_won(Player::ONE));
 	assert(!e.is_won(Player::TWO));
@@ -147,3 +125,4 @@ void test()
 	e.reset();
 }
 } // namespace tictactoe
+#endif
