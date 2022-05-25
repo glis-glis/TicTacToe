@@ -143,7 +143,7 @@ constexpr Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Eva
 Return best move.
 If randomize is set, chose randomly between moves with equal score.
  */
-inline std::pair<Move, Eval> best_move(const Board b, const BPlayer p, const bool randomize = true) noexcept {
+template<bool randomize = true> inline std::pair<Move, Eval> best_move(const Board b, const BPlayer p) noexcept {
 	std::random_device r;
 	std::default_random_engine rand_engine(r());
 	std::bernoulli_distribution rand_bool;
@@ -158,7 +158,7 @@ inline std::pair<Move, Eval> best_move(const Board b, const BPlayer p, const boo
 		if (e > ev) {
 			ev = e;
 			mo = m;
-		} else if (randomize && e == ev && rand_bool(rand_engine)) {
+		} else if (e == ev && rand_bool(rand_engine)) {
 			ev = e;
 			mo = m;
 		}
@@ -166,23 +166,39 @@ inline std::pair<Move, Eval> best_move(const Board b, const BPlayer p, const boo
 	return std::make_pair(mo, ev);
 }
 
-inline std::optional<Board> str2board(const std::string &s) noexcept {
-	std::regex re("^[.xoXO]{9}$");
-	if (!std::regex_match(s, re)) { return {}; }
-	Board b = BBoards::EMPTY;
-	for (size_t i = 0; i < BBoards::LENGTH; ++i) {
-		const auto c = tolower(s[i]);
-		if (c == 'x') {
-			b = play(b, BPlayers::ONE, Move(i));
-		} else if (c == 'o') {
-			b = play(b, BPlayers::TWO, Move(i));
+template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const BPlayer p) noexcept {
+	// Mutable:
+	Eval ev   = -2 * Evals::WON;
+	Move mo   = -1;
+	BBoard bb = bboard(b, BPlayers::BOTH);
+	for (Move m = find_first(bb); m < BPlayers::TWO; bb ^= (1 << m), m = find_first(bb)) {
+		// for (Move m = 0; m < BBoards::LENGTH; ++m) {
+		Eval e = alphabeta(play(b, p, m), p);
+		if (e > ev) {
+			ev = e;
+			mo = m;
 		}
 	}
+	return std::make_pair(mo, ev);
+}
 
+constexpr std::optional<Board> str2board(std::string_view s) noexcept {
+	if (s.size() != 9) { return {}; }
+	Board b = BBoards::EMPTY;
+	for (size_t i = 0; i < BBoards::LENGTH; ++i) {
+		switch(s[i]) {
+		case 'X': 
+		case 'x': b = play(b, BPlayers::ONE, Move(i)); break;
+		case 'O':
+		case 'o': b = play(b, BPlayers::TWO, Move(i)); break;
+		case '.': break;
+		default: return {};
+		}
+	}
 	return b;
 }
 
-inline std::optional<std::string> board2str(Board b) noexcept {
+constexpr std::optional<std::string> board2str(Board b) noexcept {
 	if (!is_legal(b)) { return {}; }
 	const auto one = bboard(b, BPlayers::ONE);
 	const auto two = bboard(b, BPlayers::TWO);
@@ -198,10 +214,16 @@ inline std::optional<std::string> board2str(Board b) noexcept {
 	return s;
 }
 
-inline std::optional<Move> str2move(Board b, const std::string &s) noexcept {
-	std::regex re("^[a-cA-C][1-3]$");
-	if (!std::regex_match(s, re)) { return {}; }
-	const Move m = (s[1] - '1') * 3 + (tolower(s[0]) - 'a');
+constexpr std::optional<Move> str2move(Board b, std::string_view s) noexcept {
+	if (s.size() != 2) { return {}; }
+
+	const int col = std::tolower(s[0]) - 'a';
+	if (col < 0 || col > 2){ return {}; }
+
+	const int row = s[1] - '1';
+	if (row < 0 || row > 2){ return {}; }
+
+	const Move m = row * 3 + col;
 
 	if (is_move(b, m)) { return m; }
 	return {};
@@ -275,7 +297,7 @@ inline void test() {
 	assert(alphabeta(b, BPlayers::TWO) < -Evals::DRAW);
 
 	// best_move
-	assert(best_move(BBoards::EMPTY, BPlayers::ONE, false) == std::make_pair(Move(0), Eval(0)));
+	assert(best_move<false>(BBoards::EMPTY, BPlayers::ONE) == std::make_pair(Move(0), Eval(0)));
 	assert(best_move(BBoards::EMPTY, BPlayers::ONE).second == Evals::DRAW);
 	// b.one = 0b110000000 and is won whoever plays
 	assert(best_move(b, BPlayers::ONE).second > Evals::DRAW);
