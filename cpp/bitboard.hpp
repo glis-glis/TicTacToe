@@ -143,8 +143,10 @@ constexpr Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Eva
 	// Mutable:
 	Eval beta       = Evals::WON;
 	BBoard bb       = bboard<BPlayers::BOTH>(b);
-	for (Move m = find_first(bb); m < BPlayers::TWO && beta > alpha; bb ^= (1 << m), m = find_first(bb)) {
+	for (Move m = find_first(bb); m < BPlayers::TWO; m = find_first(bb)) {
 		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
+		if (beta <= alpha) break;
+		bb ^= (1 << m);
 	}
 	return beta / 2; // The "closer" a win, the higher it's score
 }
@@ -162,16 +164,15 @@ template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, c
 	Eval ev   = -2 * Evals::WON;
 	Move mo   = -1;
 	BBoard bb = bboard(b, BPlayers::BOTH);
-	for (Move m = find_first(bb); m < BPlayers::TWO; bb ^= (1 << m), m = find_first(bb)) {
-		// for (Move m = 0; m < BBoards::LENGTH; ++m) {
+	for (Move m = find_first(bb); m < BPlayers::TWO; m = find_first(bb)) {
 		const Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
 			mo = m;
 		} else if (e == ev && rand_bool(rand_engine)) {
-			ev = e;
 			mo = m;
 		}
+		bb ^= (1 << m);
 	}
 	return {mo, ev};
 }
@@ -181,13 +182,13 @@ template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const
 	Eval ev   = -2 * Evals::WON;
 	Move mo   = -1;
 	BBoard bb = bboard<BPlayers::BOTH>(b);
-	for (Move m = find_first(bb); m < BPlayers::TWO; bb ^= (1 << m), m = find_first(bb)) {
-		// for (Move m = 0; m < BBoards::LENGTH; ++m) {
+	for (Move m = find_first(bb); m < BPlayers::TWO; m = find_first(bb)) {
 		const Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
 			mo = m;
 		}
+		bb ^= (1 << m);
 	}
 	return {mo, ev};
 }

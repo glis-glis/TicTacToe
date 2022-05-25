@@ -22,11 +22,10 @@ public:
 	/// of exceptions
 	constexpr Engine() noexcept {}
 
-	/// set board to `board`, return false if `board` illegal
 	constexpr void reset() noexcept { this->_board = bitboard::BBoards::EMPTY; }
 
 	/// set board to `board`, return false if `board` illegal
-	bool set(std::string board) noexcept {
+	bool set(std::string_view board) noexcept {
 		if (const auto b = bitboard::str2board(board)) {
 			this->_board = *b;
 			return true;
@@ -40,8 +39,8 @@ public:
 		return this->is_full() || this->is_won(Player::ONE) || this->is_won(Player::TWO);
 	}
 
-	/// Play `move` for `player`, return new board
-	bool play(Player player, std::string move) noexcept {
+	/// Play `move` for `player`, return false if `move` illegal
+	bool play(Player player, std::string_view move) noexcept {
 		if (const auto m = bitboard::str2move(this->_board, move)) {
 			this->_board = bitboard::play(this->_board, bitboard::bplayer(player), *m);
 			return true;
@@ -119,8 +118,11 @@ inline void test() {
 	e.reset();
 
 	assert(e.play_best(Player::ONE));
+	std::cout << e << '\n';
 	assert(e.play_best(Player::ONE));
+	std::cout << e << '\n';
 	assert(e.play_best(Player::ONE));
+	std::cout << e << '\n';
 	assert(e.is_won(Player::ONE));
 	e.reset();
 }

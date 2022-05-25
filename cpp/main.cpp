@@ -20,14 +20,17 @@ Player get_player() {
 		std::getline(std::cin, s);
 		if (s.length() != 1) continue;
 
-		const auto c = toupper(s[0]);
-		if (c == 'Y') return Player::ONE;
-		if (c == 'N') return Player::TWO;
+		switch (s[0]) {
+		case 'Y':
+		case 'y':return Player::ONE;
+		case 'N':
+		case 'n':return Player::TWO;
+		default: continue;
+		}
 	}
 }
 
 int main() {
-	using namespace tictactoe;
 	std::cout << "Welcome to TicTacToe\n";
 	Engine e;
 	std::cout << e << '\n';
