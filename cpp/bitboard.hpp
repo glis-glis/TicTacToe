@@ -36,10 +36,14 @@ using Eval    = int;          /// -1, 0 or 1
 /// Index of start of bitboards
 enum BPlayers : BPlayer { ONE = 0, TWO = 9, BOTH = 18 };
 
-constexpr BPlayer bplayer(Player p) noexcept { return p == Player::ONE ? BPlayers::ONE : BPlayers::TWO; }
+constexpr BPlayer bplayer(Player p) noexcept {
+	std::array<BPlayers, 2> ar{BPlayers::ONE, BPlayers::TWO};
+	return ar[p != Player::ONE];
+}
 
 /// Bitboard constants
 enum BBoards : BBoard { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 };
+
 /// Evaluation constants
 enum Evals : Eval { DRAW = 0, WON = 1 << BPlayers::BOTH };
 
@@ -58,11 +62,17 @@ constexpr Board board(const BBoard b1, const BBoard b2) noexcept {
 	return b1 | (b2 << BPlayers::TWO) | ((b1 | b2) << BPlayers::BOTH);
 }
 
+
 /**
 Return bitboard of board b for player p. No boundary nor type check for
 performance reason!
  */
 constexpr BBoard bboard(const Board b, const BPlayer p) noexcept { return (b >> p) & BBoards::FULL; }
+
+template<BPlayer p>
+constexpr BBoard bboard(const Board b) noexcept { return (b >> p) & BBoards::FULL; }
+template<>
+constexpr BBoard bboard<0>(const Board b) noexcept { return b & BBoards::FULL; }
 
 /**
 Play move for player and return new board
@@ -74,22 +84,22 @@ constexpr Board play(const Board b, const BPlayer p, const Move m) noexcept {
 
 /// Is board b legal?
 constexpr bool is_legal(const Board b) noexcept {
-	const BBoard bb1     = bboard(b, BPlayers::ONE);
-	const BBoard bb2     = bboard(b, BPlayers::TWO);
-	const BBoard bb_both = bboard(b, BPlayers::BOTH);
+	const BBoard bb1     = bboard<BPlayers::ONE>(b);
+	const BBoard bb2     = bboard<BPlayers::TWO>(b);
+	const BBoard bb_both = bboard<BPlayers::BOTH>(b);
 	return !(bb1 & bb2) && ((bb1 | bb2) == bb_both);
 }
 
 /// Is board b full?
-constexpr bool is_full(const Board b) noexcept { return bboard(b, BPlayers::BOTH) == BBoards::FULL; }
+constexpr bool is_full(const Board b) noexcept { return bboard<BPlayers::BOTH>(b) == BBoards::FULL; }
 
 /// Is board b won?
 constexpr bool is_won(const Board b, const BPlayer p) noexcept {
-	constexpr std::array<BBoard, 8> WINS = {0b000000111, 0b000111000, 0b111000000, 0b100100100,
+	constexpr std::array<BBoard, 8> wins = {0b000000111, 0b000111000, 0b111000000, 0b100100100,
 											0b010010010, 0b001001001, 0b100010001, 0b001010100};
 
 	const BBoard bb = bboard(b, p);
-	return std::any_of(WINS.begin(), WINS.end(), [bb](const BBoard w) { return (w & bb) == w; });
+	return std::any_of(wins.begin(), wins.end(), [bb](const BBoard w) { return (w & bb) == w; });
 }
 
 constexpr bool is_move(const Board b, const Move m) noexcept {
@@ -132,7 +142,7 @@ constexpr Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Eva
 	const BPlayer o = other(p);
 	// Mutable:
 	Eval beta       = Evals::WON;
-	BBoard bb       = bboard(b, BPlayers::BOTH);
+	BBoard bb       = bboard<BPlayers::BOTH>(b);
 	for (Move m = find_first(bb); m < BPlayers::TWO && beta > alpha; bb ^= (1 << m), m = find_first(bb)) {
 		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
 	}
@@ -143,7 +153,7 @@ constexpr Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Eva
 Return best move.
 If randomize is set, chose randomly between moves with equal score.
  */
-template<bool randomize = true> inline std::pair<Move, Eval> best_move(const Board b, const BPlayer p) noexcept {
+template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, const BPlayer p) noexcept {
 	std::random_device r;
 	std::default_random_engine rand_engine(r());
 	std::bernoulli_distribution rand_bool;
@@ -154,7 +164,7 @@ template<bool randomize = true> inline std::pair<Move, Eval> best_move(const Boa
 	BBoard bb = bboard(b, BPlayers::BOTH);
 	for (Move m = find_first(bb); m < BPlayers::TWO; bb ^= (1 << m), m = find_first(bb)) {
 		// for (Move m = 0; m < BBoards::LENGTH; ++m) {
-		Eval e = alphabeta(play(b, p, m), p);
+		const Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
 			mo = m;
@@ -163,23 +173,23 @@ template<bool randomize = true> inline std::pair<Move, Eval> best_move(const Boa
 			mo = m;
 		}
 	}
-	return std::make_pair(mo, ev);
+	return {mo, ev};
 }
 
 template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const BPlayer p) noexcept {
 	// Mutable:
 	Eval ev   = -2 * Evals::WON;
 	Move mo   = -1;
-	BBoard bb = bboard(b, BPlayers::BOTH);
+	BBoard bb = bboard<BPlayers::BOTH>(b);
 	for (Move m = find_first(bb); m < BPlayers::TWO; bb ^= (1 << m), m = find_first(bb)) {
 		// for (Move m = 0; m < BBoards::LENGTH; ++m) {
-		Eval e = alphabeta(play(b, p, m), p);
+		const Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
 			mo = m;
 		}
 	}
-	return std::make_pair(mo, ev);
+	return {mo, ev};
 }
 
 constexpr std::optional<Board> str2board(std::string_view s) noexcept {

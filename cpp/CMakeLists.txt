@@ -8,7 +8,7 @@ project(TicTacToe LANGUAGES CXX)
 add_executable(tictactoe main.cpp)
 target_compile_features(tictactoe PRIVATE cxx_std_20)
 set_target_properties(tictactoe PROPERTIES CXX_EXTENSIONS OFF)
-target_compile_options(tictactoe PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(tictactoe PRIVATE -O3 -Wall -Wextra -Wpedantic)
 
 add_executable(test test.cpp)
 target_compile_features(test PRIVATE cxx_std_20)
