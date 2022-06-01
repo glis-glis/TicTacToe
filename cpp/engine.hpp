@@ -18,9 +18,7 @@ class Engine {
 private:
 	bitboard::Board _board = bitboard::BBoards::EMPTY;
 public:
-	/// Constructor, on purpose without board parameter to remove the need
-	/// of exceptions
-	constexpr Engine() noexcept {}
+	constexpr Engine() noexcept = default;
 
 	constexpr void reset() noexcept { this->_board = bitboard::BBoards::EMPTY; }
 
@@ -117,14 +115,14 @@ inline void test() {
 
 	e.reset();
 
+	assert(e.play(Player::ONE, "b2"));
+	assert(e.play(Player::TWO, "b1"));
 	assert(e.play_best(Player::ONE));
-	std::cout << e << '\n';
+	assert(e.play_best(Player::TWO));
 	assert(e.play_best(Player::ONE));
-	std::cout << e << '\n';
+	assert(e.play_best(Player::TWO));
 	assert(e.play_best(Player::ONE));
-	std::cout << e << '\n';
 	assert(e.is_won(Player::ONE));
-	e.reset();
 }
 } // namespace tictactoe
 #endif
