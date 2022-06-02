@@ -11,7 +11,7 @@ int main()
 	tictactoe::test();
 	auto start = std::chrono::high_resolution_clock::now();
 	for (size_t _ = 0; _ < size_t(1e4); ++_)
-		tictactoe::bitboard::best_move<false>(0, tictactoe::bitboard::BPlayers::ONE);
+		tictactoe::bitboard::best_move<false>(tictactoe::bitboard::Board{}, tictactoe::Player::ONE);
 	auto end = std::chrono::high_resolution_clock::now();
 	std::cout << std::chrono::duration<double>(end - start).count() << "s\n";
 	return 0;

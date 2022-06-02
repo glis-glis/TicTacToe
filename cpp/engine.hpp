@@ -16,11 +16,11 @@ namespace tictactoe {
 
 class Engine {
 private:
-	bitboard::Board _board = bitboard::BBoards::EMPTY;
+	bitboard::Board _board{};
 public:
 	constexpr Engine() noexcept = default;
 
-	constexpr void reset() noexcept { this->_board = bitboard::BBoards::EMPTY; }
+	constexpr void reset() noexcept { this->_board = bitboard::Board{}; }
 
 	/// set board to `board`, return false if `board` illegal
 	bool set(std::string_view board) noexcept {
@@ -31,7 +31,7 @@ public:
 		return false;
 	}
 
-	constexpr bool is_won(Player player) const noexcept { return bitboard::is_won(this->_board, bitboard::bplayer(player)); }
+	constexpr bool is_won(Player player) const noexcept { return bitboard::is_won(this->_board, player); }
 	constexpr bool is_full() const noexcept { return bitboard::is_full(this->_board); }
 	constexpr bool is_finished() const noexcept {
 		return this->is_full() || this->is_won(Player::ONE) || this->is_won(Player::TWO);
@@ -40,7 +40,7 @@ public:
 	/// Play `move` for `player`, return false if `move` illegal
 	bool play(Player player, std::string_view move) noexcept {
 		if (const auto m = bitboard::str2move(this->_board, move)) {
-			this->_board = bitboard::play(this->_board, bitboard::bplayer(player), *m);
+			this->_board = bitboard::play(this->_board, player, *m);
 			return true;
 		}
 		return false;
@@ -55,9 +55,8 @@ public:
 	/// Play best move for `player`, return new board
 	bool play_best(Player player) noexcept {
 		if (is_finished()) { return false; }
-		const auto bp = bitboard::bplayer(player);
-		const auto m  = bitboard::best_move(this->_board, bp).first;
-		this->_board  = bitboard::play(this->_board, bp, m);
+		const auto m  = bitboard::best_move(this->_board, player).first;
+		this->_board  = bitboard::play(this->_board, player, m);
 		return true;
 	}
 };

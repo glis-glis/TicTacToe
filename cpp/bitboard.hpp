@@ -16,6 +16,7 @@
 #include <optional>
 #include <random>
 #include <regex>
+#include <type_traits>
 #include <vector>
 
 namespace tictactoe {
@@ -27,106 +28,113 @@ constexpr Player other(Player p) noexcept { return static_cast<Player>(!static_c
 namespace bitboard {
 // Type definitions
 
-using BBoard  = unsigned int; /// One bitboard
-using Board   = unsigned int; /// All three bitboard
-using BPlayer = int;          /// 0, 9, or 18
-using Move    = int;          /// From 0 to 8, however, the <bit> functions return signed
-using Eval    = int;          /// -1, 0 or 1
+enum class BBoard : uint16_t { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 };
+enum class Move : int {begin = 0, end = 9};
+enum class Eval : int { DRAW = 0, WON = 1 << 20, LOST = -WON };
 
-/// Index of start of bitboards
-enum BPlayers : BPlayer { ONE = 0, TWO = 9, BOTH = 18 };
-
-constexpr BPlayer bplayer(Player p) noexcept {
-	std::array<BPlayers, 2> ar{BPlayers::ONE, BPlayers::TWO};
-	return ar[p != Player::ONE];
+template<typename T>
+auto underlying(T t) {
+	return static_cast<std::underlying_type_t<T>>(t);
 }
 
-/// Bitboard constants
-enum BBoards : BBoard { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 };
+constexpr BBoard operator|(BBoard lhs, BBoard rhs) noexcept {return BBoard(underlying(lhs) | underlying(rhs));}
+constexpr BBoard& operator|=(BBoard &lhs, BBoard rhs) noexcept {return lhs = lhs | rhs;}
 
-/// Evaluation constants
-enum Evals : Eval { DRAW = 0, WON = 1 << BPlayers::BOTH };
+constexpr BBoard operator&(BBoard lhs, BBoard rhs) noexcept {return BBoard(underlying(lhs) & underlying(rhs));}
+constexpr BBoard& operator&=(BBoard &lhs, BBoard rhs) noexcept {return lhs = lhs & rhs;}
 
-/// Return other player.
-constexpr BPlayer other(const BPlayer p) noexcept {
-	// 0^9 -> 9
-	// 9^9 -> 0
-	return p ^ BPlayers::TWO;
+constexpr BBoard operator^(BBoard lhs, BBoard rhs) noexcept {return BBoard(underlying(lhs) ^ underlying(rhs));}
+constexpr BBoard& operator^=(BBoard &lhs, BBoard rhs) noexcept {return lhs = lhs ^ rhs;}
+
+constexpr BBoard operator<<(int lhs, Move rhs) noexcept {return BBoard(lhs << underlying(rhs));}
+
+constexpr BBoard operator>>(BBoard lhs, int rhs) noexcept {return BBoard(underlying(lhs) >> rhs);}
+constexpr BBoard operator<<(BBoard lhs, int rhs) noexcept {return BBoard(underlying(lhs) << rhs);}
+
+constexpr Move &operator++(Move &m) {
+	m = Move(underlying(m) + 1);
+	return m;
 }
 
-/**
-Return board of bitboards b1 and b2. No boundary nor type check for
-performance reason!
- */
-constexpr Board board(const BBoard b1, const BBoard b2) noexcept {
-	return b1 | (b2 << BPlayers::TWO) | ((b1 | b2) << BPlayers::BOTH);
-}
+constexpr Eval operator-(Eval e) noexcept {return Eval(-(underlying(e)));}
+constexpr Eval operator/(Eval lhs, int rhs) noexcept {return Eval(underlying(lhs) / rhs);}
+constexpr Eval operator*(Eval lhs, int rhs) noexcept {return Eval(underlying(lhs) * rhs);}
 
+class Board {
+private:
+	std::array<BBoard, 2> _bboards;
+public:
+	constexpr Board() = default;
+	constexpr Board(BBoard lhs, BBoard rhs): _bboards{lhs, rhs} {}
 
-/**
-Return bitboard of board b for player p. No boundary nor type check for
-performance reason!
- */
-constexpr BBoard bboard(const Board b, const BPlayer p) noexcept { return (b >> p) & BBoards::FULL; }
+	constexpr BBoard operator[](Player p) const noexcept {return _bboards[underlying(p)];}
+	constexpr BBoard& operator[](Player p) noexcept {return _bboards[underlying(p)];}
 
-template<BPlayer p>
-constexpr BBoard bboard(const Board b) noexcept { return (b >> p) & BBoards::FULL; }
-template<>
-constexpr BBoard bboard<0>(const Board b) noexcept { return b & BBoards::FULL; }
+	constexpr BBoard one() const noexcept {return _bboards.front();};
+	constexpr BBoard& one() noexcept {return _bboards.front();};
+
+	constexpr BBoard two() const noexcept {return _bboards.back();};
+	constexpr BBoard& two() noexcept {return _bboards.back();};
+};
 
 /**
 Play move for player and return new board
 No boundary nor type check for performance reason!
 */
-constexpr Board play(const Board b, const BPlayer p, const Move m) noexcept {
-	return b | (1 << (m + p)) | (1 << (m + BPlayers::BOTH));
+constexpr Board play(Board b, const Player p, const Move m) noexcept {
+	b[p] |= 1 << m;
+	return b;
 }
 
 /// Is board b legal?
 constexpr bool is_legal(const Board b) noexcept {
-	const BBoard bb1     = bboard<BPlayers::ONE>(b);
-	const BBoard bb2     = bboard<BPlayers::TWO>(b);
-	const BBoard bb_both = bboard<BPlayers::BOTH>(b);
-	return !(bb1 & bb2) && ((bb1 | bb2) == bb_both);
+	return (b.one() & b.two()) == BBoard::EMPTY
+		&& (b.one() >> 9) == BBoard::EMPTY
+		&& (b.two() >> 9) == BBoard::EMPTY;
 }
 
+constexpr BBoard both(Board b) noexcept { return b.one() | b.two(); }
+
 /// Is board b full?
-constexpr bool is_full(const Board b) noexcept { return bboard<BPlayers::BOTH>(b) == BBoards::FULL; }
+constexpr bool is_full(const Board b) noexcept { return both(b) == BBoard::FULL; }
 
 /// Is board b won?
-constexpr bool is_won(const Board b, const BPlayer p) noexcept {
-	constexpr std::array<BBoard, 8> wins = {0b000000111, 0b000111000, 0b111000000, 0b100100100,
-											0b010010010, 0b001001001, 0b100010001, 0b001010100};
+constexpr bool is_won(const Board b, const Player p) noexcept {
+	constexpr std::array<BBoard, 8> wins = {BBoard{0b000000111}, BBoard{0b000111000}, BBoard{0b111000000},
+											BBoard{0b100100100}, BBoard{0b010010010}, BBoard{0b001001001},
+											BBoard{0b100010001}, BBoard{0b001010100}};
 
-	const BBoard bb = bboard(b, p);
+	const BBoard bb = b[p];
 	return std::any_of(wins.begin(), wins.end(), [bb](const BBoard w) { return (w & bb) == w; });
 }
 
 constexpr bool is_move(const Board b, const Move m) noexcept {
-	return static_cast<unsigned int>(m) < 9 && (play(b, BPlayers::BOTH, m) != b);
+	const auto bb = both(b);
+	return static_cast<unsigned int>(m) < 9 // underflow becomes overflow for unsigned
+		&& (bb | 1 << m) != bb;
 }
 
 /// Find first unset bit
-constexpr Move find_first(const BBoard bb) noexcept { return std::countr_one(bb); }
+constexpr Move find_first(const BBoard bb) noexcept { return Move(std::countr_one(underlying(bb))); }
 
 /// Find next unset bit after m
 constexpr Move find_next(const BBoard bb, const Move m) noexcept {
-	const Move next = m + 1;
-	return next + std::countr_one(bb >> next);
+	const int next = underlying(m) + 1;
+	return Move(next + std::countr_one(underlying(bb >> next)));
 }
 
 /**
 Return score of move (already played in order not to put it onto the stack).
 Uses minimax (negamax) algorithm.
 */
-constexpr Eval minimax(const Board b, const BPlayer p) noexcept {
-	if (is_won(b, p)) { return Evals::WON; }
-	if (is_full(b)) { return Evals::DRAW; }
-	const BPlayer o = other(p);
-	// Mutable:
-	Eval e          = Evals::WON;
-	BBoard bb       = bboard(b, BPlayers::BOTH);
-	for (Move m = find_first(bb); m < BPlayers::TWO && e != -Evals::WON; bb ^= (1 << m), m = find_first(bb)) {
+constexpr Eval minimax(const Board b, const Player p) noexcept {
+	if (is_won(b, p)) { return Eval::WON; }
+	if (is_full(b)) { return Eval::DRAW; }
+	const Player o = other(p);
+
+	Eval e          = Eval::WON;
+	BBoard bb       = both(b);
+	for (Move m = find_first(bb); m < Move::end && e != Eval::LOST; bb ^= (1 << m), m = find_first(bb)) {
 		e = std::min(e, -minimax(play(b, o, m), o));
 	}
 	return e;
@@ -136,14 +144,14 @@ constexpr Eval minimax(const Board b, const BPlayer p) noexcept {
 Return score of move (already played in order not to put it onto the stack).
 Uses alpha beta pruning algorithm.
 */
-constexpr Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Evals::WON) noexcept {
-	if (is_won(b, p)) { return Evals::WON; }
-	if (is_full(b)) { return Evals::DRAW; }
-	const BPlayer o = other(p);
+constexpr Eval alphabeta(const Board b, const Player p, const Eval alpha = Eval::LOST) noexcept {
+	if (is_won(b, p)) { return Eval::WON; }
+	if (is_full(b)) { return Eval::DRAW; }
+	const Player o = other(p);
 	// Mutable:
-	Eval beta       = Evals::WON;
-	BBoard bb       = bboard<BPlayers::BOTH>(b);
-	for (Move m = find_first(bb); m < BPlayers::TWO; m = find_first(bb)) {
+	Eval beta       = Eval::WON;
+	BBoard bb       = both(b);
+	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
 		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
 		if (beta <= alpha) break;
 		bb ^= (1 << m);
@@ -155,16 +163,16 @@ constexpr Eval alphabeta(const Board b, const BPlayer p, const Eval alpha = -Eva
 Return best move.
 If randomize is set, chose randomly between moves with equal score.
  */
-template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, const BPlayer p) noexcept {
+template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, const Player p) noexcept {
 	std::random_device r;
 	std::default_random_engine rand_engine(r());
 	std::bernoulli_distribution rand_bool;
 
 	// Mutable:
-	Eval ev   = -2 * Evals::WON;
-	Move mo   = -1;
-	BBoard bb = bboard(b, BPlayers::BOTH);
-	for (Move m = find_first(bb); m < BPlayers::TWO; m = find_first(bb)) {
+	Eval ev   = Eval::LOST * 2;
+	Move mo{-1};
+	BBoard bb = both(b);
+	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
 		const Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
@@ -177,12 +185,12 @@ template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, c
 	return {mo, ev};
 }
 
-template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const BPlayer p) noexcept {
+template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const Player p) noexcept {
 	// Mutable:
-	Eval ev   = -2 * Evals::WON;
-	Move mo   = -1;
-	BBoard bb = bboard<BPlayers::BOTH>(b);
-	for (Move m = find_first(bb); m < BPlayers::TWO; m = find_first(bb)) {
+	Eval ev   = Eval::LOST * 2;
+	Move mo{-1};
+	BBoard bb = both(b);
+	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
 		const Eval e = alphabeta(play(b, p, m), p);
 		if (e > ev) {
 			ev = e;
@@ -195,13 +203,13 @@ template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const
 
 constexpr std::optional<Board> str2board(std::string_view s) noexcept {
 	if (s.size() != 9) { return {}; }
-	Board b = BBoards::EMPTY;
-	for (size_t i = 0; i < BBoards::LENGTH; ++i) {
-		switch(s[i]) {
+	Board b{};
+	for (Move m = Move::begin; m < Move::end; ++m) {
+		switch(s[underlying(m)]) {
 		case 'X': 
-		case 'x': b = play(b, BPlayers::ONE, Move(i)); break;
+		case 'x': b = play(b, Player::ONE, m); break;
 		case 'O':
-		case 'o': b = play(b, BPlayers::TWO, Move(i)); break;
+		case 'o': b = play(b, Player::TWO, m); break;
 		case '.': break;
 		default: return {};
 		}
@@ -211,15 +219,15 @@ constexpr std::optional<Board> str2board(std::string_view s) noexcept {
 
 constexpr std::optional<std::string> board2str(Board b) noexcept {
 	if (!is_legal(b)) { return {}; }
-	const auto one = bboard(b, BPlayers::ONE);
-	const auto two = bboard(b, BPlayers::TWO);
+	const auto one = b.one();
+	const auto two = b.two();
 	auto s         = std::string(9, '.');
-	for (size_t i = 0; i < BBoards::LENGTH; ++i) {
-		const BBoard bi = 1 << i;
-		if (one & bi) {
-			s[i] = 'x';
-		} else if (two & bi) {
-			s[i] = 'o';
+	for (Move m = Move::begin; m < Move::end; ++m) {
+		const BBoard bi = 1 << m;
+		if ((one & bi) != BBoard::EMPTY) {
+			s[underlying(m)] = 'x';
+		} else if ((two & bi) != BBoard::EMPTY) {
+			s[underlying(m)] = 'o';
 		}
 	}
 	return s;
@@ -234,7 +242,7 @@ constexpr std::optional<Move> str2move(Board b, std::string_view s) noexcept {
 	const int row = s[1] - '1';
 	if (row < 0 || row > 2){ return {}; }
 
-	const Move m = row * 3 + col;
+	const Move m{row * 3 + col};
 
 	if (is_move(b, m)) { return m; }
 	return {};
@@ -244,75 +252,57 @@ inline void test() {
 	// Random device
 	std::random_device r;
 	std::default_random_engine rand_engine(r());
-	std::uniform_int_distribution<BBoard> rand_bboard(0, BBoards::FULL);
+	std::uniform_int_distribution<uint16_t> rand_bboard(0, underlying(BBoard::FULL));
 
 	// other
-	assert(other(BPlayers::ONE) == BPlayers::TWO);
-	assert(other(BPlayers::TWO) == BPlayers::ONE);
-	assert(other(other(BPlayers::ONE)) == BPlayers::ONE);
-	assert(other(other(BPlayers::TWO)) == BPlayers::TWO);
-
-	// board
-	assert(board(BBoards::EMPTY, BBoards::EMPTY) == BBoards::EMPTY);
-
-	// bboard
-	assert(bboard(BBoards::EMPTY, BPlayers::ONE) == BBoards::EMPTY);
-	assert(bboard(BBoards::EMPTY, BPlayers::TWO) == BBoards::EMPTY);
-	assert(bboard(BBoards::EMPTY, BPlayers::BOTH) == BBoards::EMPTY);
-	for (BBoard bb = BBoards::EMPTY; bb < BBoards::FULL + 1; ++bb) {
-		const BBoard noise1 = rand_bboard(rand_engine);
-		const BBoard noise2 = rand_bboard(rand_engine);
-		const Board b1      = board(bb, noise2);
-		const Board b2      = board(noise1, bb);
-		assert(bboard(b1, BPlayers::ONE) == bb);
-		assert(bboard(b2, BPlayers::TWO) == bb);
-	}
+	assert(other(Player::ONE) == Player::TWO);
+	assert(other(Player::TWO) == Player::ONE);
+	assert(other(other(Player::ONE)) == Player::ONE);
+	assert(other(other(Player::TWO)) == Player::TWO);
 
 	// is_legal, is_move
-	assert(is_legal(board(BBoards::EMPTY, BBoards::EMPTY)));
-	assert(is_legal(board(1, BBoards::EMPTY)));
-	assert(!is_legal(1));
+	assert(is_legal(Board{}));
+	assert(is_legal(Board(BBoard{1}, BBoard::EMPTY)));
 
-	Board b   = BBoards::EMPTY;
-	BPlayer p = BPlayers::ONE;
-	for (Move m = 0; m < 9; ++m) {
-		assert(bboard(play(BBoards::EMPTY, BPlayers::ONE, m), BPlayers::ONE) ==
-			   bboard(play(BBoards::EMPTY, BPlayers::TWO, m), BPlayers::TWO));
+	Board b{};
+	Player p = Player::ONE;
+	for (Move m = Move::begin; m < Move::end; ++m) {
+		assert(play(Board{}, Player::ONE, m).one() == play(Board{}, Player::TWO, m).two());
 		assert(is_move(b, m));
-		assert(!is_move(b, m - 1));
+		assert(!is_move(b, Move(underlying(m) - 1)));
 		b = play(b, p, m);
 		p = other(p);
 		assert(is_legal(b));
 	}
 
 	// is_full
-	assert(is_full(BBoards::FULL | (BBoards::FULL << BPlayers::BOTH)));
-	assert(is_full((BBoards::FULL << BPlayers::TWO) | (BBoards::FULL << BPlayers::BOTH)));
-	assert(!is_full(BBoards::EMPTY));
+	assert(is_full(Board{BBoard::FULL, BBoard::EMPTY}));
+	assert(is_full(Board{BBoard::EMPTY, BBoard::FULL}));
+	assert(!is_full(Board{}));
 
 	// is_won
-	assert(!is_won(BBoards::EMPTY, BPlayers::ONE));
+	assert(!is_won(Board{}, Player::ONE));
 
 	// minimax
-	b = play(BBoards::EMPTY, BPlayers::ONE, 0);
-	assert(minimax(b, BPlayers::ONE) == Evals::DRAW);
-	b = play(b, BPlayers::ONE, 1);
-	assert(minimax(b, BPlayers::ONE) == Evals::WON);
-	assert(minimax(b, BPlayers::TWO) == -Evals::WON);
+	b = play(Board{}, Player::ONE, Move(0));
+	assert(minimax(b, Player::ONE) == Eval::DRAW);
+	b = play(b, Player::ONE, Move(1));
+	assert(minimax(b, Player::ONE) == Eval::WON);
+	assert(minimax(b, Player::TWO) == Eval::LOST);
 
 	// alphabeta
-	b = play(BBoards::EMPTY, BPlayers::ONE, 0);
-	assert(alphabeta(b, BPlayers::ONE) == Evals::DRAW);
-	b = play(b, BPlayers::ONE, 1);
-	assert(alphabeta(b, BPlayers::ONE) > Evals::DRAW);
-	assert(alphabeta(b, BPlayers::TWO) < -Evals::DRAW);
+	b = play(Board{}, Player::ONE, Move(0));
+	assert(alphabeta(b, Player::ONE) == Eval::DRAW);
+	b = play(b, Player::ONE, Move(1));
+	assert(alphabeta(b, Player::ONE) > Eval::DRAW);
+	assert(alphabeta(b, Player::TWO) < -Eval::DRAW);
 
 	// best_move
-	assert(best_move<false>(BBoards::EMPTY, BPlayers::ONE) == std::make_pair(Move(0), Eval(0)));
-	assert(best_move(BBoards::EMPTY, BPlayers::ONE).second == Evals::DRAW);
+	assert(best_move<false>(Board{}, Player::ONE) == std::make_pair(Move(0), Eval(0)));
+	assert(best_move(Board{}, Player::ONE).second == Eval::DRAW);
 	// b.one = 0b110000000 and is won whoever plays
-	assert(best_move(b, BPlayers::ONE).second > Evals::DRAW);
-	assert(best_move(b, BPlayers::TWO).second < -Evals::DRAW);
+	assert(best_move(b, Player::ONE).second > Eval::DRAW);
+	assert(best_move(b, Player::TWO).second < -Eval::DRAW);
 }
 } // namespace bitboard
 } // namespace tictactoe
