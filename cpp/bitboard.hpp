@@ -28,12 +28,12 @@ constexpr Player other(Player p) noexcept { return static_cast<Player>(!static_c
 namespace bitboard {
 // Type definitions
 
-enum class BBoard : uint16_t { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 };
-enum class Move : int {begin = 0, end = 9};
+enum class BBoard : uint_fast16_t { EMPTY = 0, FULL = 0x1FF, LENGTH = 9 };
+enum class Move : uint_fast16_t {begin = 0, end = 9};
 enum class Eval : int { DRAW = 0, WON = 1 << 20, LOST = -WON };
 
 template<typename T>
-auto underlying(T t) {
+constexpr auto underlying(T t) {
 	return static_cast<std::underlying_type_t<T>>(t);
 }
 
@@ -170,7 +170,7 @@ template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, c
 
 	// Mutable:
 	Eval ev   = Eval::LOST * 2;
-	Move mo{-1};
+	Move mo{0};
 	BBoard bb = both(b);
 	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
 		const Eval e = alphabeta(play(b, p, m), p);
@@ -188,7 +188,7 @@ template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, c
 template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const Player p) noexcept {
 	// Mutable:
 	Eval ev   = Eval::LOST * 2;
-	Move mo{-1};
+	Move mo{0};
 	BBoard bb = both(b);
 	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
 		const Eval e = alphabeta(play(b, p, m), p);
@@ -242,7 +242,7 @@ constexpr std::optional<Move> str2move(Board b, std::string_view s) noexcept {
 	const int row = s[1] - '1';
 	if (row < 0 || row > 2){ return {}; }
 
-	const Move m{row * 3 + col};
+	const Move m = Move(row * 3 + col);
 
 	if (is_move(b, m)) { return m; }
 	return {};
