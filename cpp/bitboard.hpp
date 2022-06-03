@@ -59,6 +59,8 @@ constexpr Move &operator++(Move &m) {
 constexpr Eval operator-(Eval e) noexcept {return Eval(-(underlying(e)));}
 constexpr Eval operator/(Eval lhs, int rhs) noexcept {return Eval(underlying(lhs) / rhs);}
 constexpr Eval operator*(Eval lhs, int rhs) noexcept {return Eval(underlying(lhs) * rhs);}
+constexpr Eval operator>>(Eval lhs, int rhs) noexcept {return Eval(underlying(lhs) >> rhs);}
+constexpr Eval operator<<(Eval lhs, int rhs) noexcept {return Eval(underlying(lhs) << rhs);}
 
 class Board {
 private:
@@ -69,6 +71,20 @@ public:
 
 	constexpr BBoard operator[](Player p) const noexcept {return _bboards[underlying(p)];}
 	constexpr BBoard& operator[](Player p) noexcept {return _bboards[underlying(p)];}
+
+	template<Player P> constexpr BBoard get() const noexcept {
+		if constexpr (P == Player::ONE)
+			return _bboards.front();
+		else
+			return _bboards.back();
+	}
+
+	template<Player P> constexpr BBoard& get() noexcept {
+		if constexpr (P == Player::ONE)
+			return _bboards.front();
+		else
+			return _bboards.back();
+	}
 
 	constexpr BBoard one() const noexcept {return _bboards.front();};
 	constexpr BBoard& one() noexcept {return _bboards.front();};
@@ -81,9 +97,17 @@ public:
 Play move for player and return new board
 No boundary nor type check for performance reason!
 */
-constexpr Board play(Board b, const Player p, const Move m) noexcept {
-	b[p] |= 1 << m;
+template<Player P>
+constexpr Board play(Board b, const Move m) noexcept {
+	b.get<P>() |= 1 << m;
 	return b;
+}
+
+constexpr Board play(Board b, const Player p, const Move m) noexcept {
+	switch (p) {
+	case Player::ONE: return play<Player::ONE>(b, m);
+	default: return play<Player::TWO>(b, m);
+	}
 }
 
 /// Is board b legal?
@@ -96,22 +120,31 @@ constexpr bool is_legal(const Board b) noexcept {
 constexpr BBoard both(Board b) noexcept { return b.one() | b.two(); }
 
 /// Is board b full?
-constexpr bool is_full(const Board b) noexcept { return both(b) == BBoard::FULL; }
+constexpr bool is_full(const BBoard bb) noexcept { return bb == BBoard::FULL; }
+constexpr bool is_full(const Board b) noexcept { return is_full(both(b)); }
 
 /// Is board b won?
-constexpr bool is_won(const Board b, const Player p) noexcept {
+template<Player P>
+constexpr bool is_won(const Board b) noexcept {
 	constexpr std::array<BBoard, 8> wins = {BBoard{0b000000111}, BBoard{0b000111000}, BBoard{0b111000000},
 											BBoard{0b100100100}, BBoard{0b010010010}, BBoard{0b001001001},
 											BBoard{0b100010001}, BBoard{0b001010100}};
 
-	const BBoard bb = b[p];
+	const BBoard bb = b.get<P>();
 	return std::any_of(wins.begin(), wins.end(), [bb](const BBoard w) { return (w & bb) == w; });
+}
+
+constexpr bool is_won(const Board b, const Player p) noexcept {
+	switch (p) {
+	case Player::ONE: return is_won<Player::ONE>(b);
+	default: return is_won<Player::TWO>(b);
+	}
 }
 
 constexpr bool is_move(const Board b, const Move m) noexcept {
 	const auto bb = both(b);
 	return static_cast<unsigned int>(m) < 9 // underflow becomes overflow for unsigned
-		&& (bb | 1 << m) != bb;
+	       && (bb | 1 << m) != bb;
 }
 
 /// Find first unset bit
@@ -132,8 +165,8 @@ constexpr Eval minimax(const Board b, const Player p) noexcept {
 	if (is_full(b)) { return Eval::DRAW; }
 	const Player o = other(p);
 
-	Eval e          = Eval::WON;
-	BBoard bb       = both(b);
+	Eval e    = Eval::WON;
+	BBoard bb = both(b);
 	for (Move m = find_first(bb); m < Move::end && e != Eval::LOST; bb ^= (1 << m), m = find_first(bb)) {
 		e = std::min(e, -minimax(play(b, o, m), o));
 	}
@@ -144,19 +177,28 @@ constexpr Eval minimax(const Board b, const Player p) noexcept {
 Return score of move (already played in order not to put it onto the stack).
 Uses alpha beta pruning algorithm.
 */
-constexpr Eval alphabeta(const Board b, const Player p, const Eval alpha = Eval::LOST) noexcept {
-	if (is_won(b, p)) { return Eval::WON; }
-	if (is_full(b)) { return Eval::DRAW; }
-	const Player o = other(p);
-	// Mutable:
-	Eval beta       = Eval::WON;
-	BBoard bb       = both(b);
+template<Player P> constexpr Eval alphabeta(const Board b, const Eval alpha = Eval::LOST) noexcept {
+	constexpr Player O = other(P);
+
+	if (is_won<P>(b)) { return Eval::WON; }
+
+	BBoard bb          = both(b);
+	if (is_full(bb)) { return Eval::DRAW; }
+
+	Eval beta          = -alpha;//Eval::WON;
 	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
-		beta = std::min(beta, -alphabeta(play(b, o, m), o, -beta));
+		beta = std::min(beta, -alphabeta<O>(play<O>(b, m), -beta));
 		if (beta <= alpha) break;
 		bb ^= (1 << m);
 	}
-	return beta / 2; // The "closer" a win, the higher it's score
+	return beta >> 2; // The "closer" a win, the higher it's score
+}
+
+constexpr Eval alphabeta(const Board b, const Player p, const Eval alpha = Eval::LOST) noexcept {
+	switch (p) {
+	case Player::ONE: return alphabeta<Player::ONE>(b, alpha);
+	default: return alphabeta<Player::TWO>(b, alpha);
+	}
 }
 
 /**
@@ -169,7 +211,7 @@ template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, c
 	std::bernoulli_distribution rand_bool;
 
 	// Mutable:
-	Eval ev   = Eval::LOST * 2;
+	Eval ev = Eval::LOST * 2;
 	Move mo{0};
 	BBoard bb = both(b);
 	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
@@ -187,7 +229,7 @@ template<bool randomize = true> std::pair<Move, Eval> best_move(const Board b, c
 
 template<> constexpr std::pair<Move, Eval> best_move<false>(const Board b, const Player p) noexcept {
 	// Mutable:
-	Eval ev   = Eval::LOST * 2;
+	Eval ev = Eval::LOST * 2;
 	Move mo{0};
 	BBoard bb = both(b);
 	for (Move m = find_first(bb); m < Move::end; m = find_first(bb)) {
@@ -205,8 +247,8 @@ constexpr std::optional<Board> str2board(std::string_view s) noexcept {
 	if (s.size() != 9) { return {}; }
 	Board b{};
 	for (Move m = Move::begin; m < Move::end; ++m) {
-		switch(s[underlying(m)]) {
-		case 'X': 
+		switch (s[underlying(m)]) {
+		case 'X':
 		case 'x': b = play(b, Player::ONE, m); break;
 		case 'O':
 		case 'o': b = play(b, Player::TWO, m); break;
@@ -237,10 +279,10 @@ constexpr std::optional<Move> str2move(Board b, std::string_view s) noexcept {
 	if (s.size() != 2) { return {}; }
 
 	const int col = std::tolower(s[0]) - 'a';
-	if (col < 0 || col > 2){ return {}; }
+	if (col < 0 || col > 2) { return {}; }
 
 	const int row = s[1] - '1';
-	if (row < 0 || row > 2){ return {}; }
+	if (row < 0 || row > 2) { return {}; }
 
 	const Move m = Move(row * 3 + col);
 
